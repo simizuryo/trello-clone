@@ -1,0 +1,1013 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Trello風タスク管理 — 画面プロトタイプ</title>
+<style>
+  :root {
+    --bg: #eef1ea;
+    --surface: #ffffff;
+    --panel: #e3e9df;
+    --panel-border: #cbd5c5;
+    --text: #1b231f;
+    --text-muted: #5c6960;
+    --accent: #3f6b52;
+    --accent-hover: #345a45;
+    --accent-contrast: #ffffff;
+    --danger: #b3492f;
+    --danger-hover: #95392a;
+    --focus-ring: rgba(63, 107, 82, 0.45);
+    --shadow-card: 0 1px 2px rgba(27, 35, 31, 0.12), 0 1px 1px rgba(27, 35, 31, 0.08);
+    --shadow-lift: 0 10px 22px rgba(27, 35, 31, 0.22), 0 2px 6px rgba(27, 35, 31, 0.14);
+    --shadow-modal: 0 20px 48px rgba(15, 20, 17, 0.35);
+    color-scheme: light;
+  }
+
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --bg: #10140f;
+      --surface: #1a1f19;
+      --panel: #202620;
+      --panel-border: #333b31;
+      --text: #e7ece4;
+      --text-muted: #9ba79c;
+      --accent: #74b08f;
+      --accent-hover: #8ac1a3;
+      --accent-contrast: #0e1410;
+      --danger: #e08d74;
+      --danger-hover: #e7a28c;
+      --focus-ring: rgba(116, 176, 143, 0.5);
+      --shadow-card: 0 1px 2px rgba(0, 0, 0, 0.4), 0 1px 1px rgba(0, 0, 0, 0.3);
+      --shadow-lift: 0 10px 24px rgba(0, 0, 0, 0.55), 0 2px 6px rgba(0, 0, 0, 0.4);
+      --shadow-modal: 0 20px 48px rgba(0, 0, 0, 0.6);
+      color-scheme: dark;
+    }
+  }
+  :root[data-theme="dark"] {
+    --bg: #10140f;
+    --surface: #1a1f19;
+    --panel: #202620;
+    --panel-border: #333b31;
+    --text: #e7ece4;
+    --text-muted: #9ba79c;
+    --accent: #74b08f;
+    --accent-hover: #8ac1a3;
+    --accent-contrast: #0e1410;
+    --danger: #e08d74;
+    --danger-hover: #e7a28c;
+    --focus-ring: rgba(116, 176, 143, 0.5);
+    --shadow-card: 0 1px 2px rgba(0, 0, 0, 0.4), 0 1px 1px rgba(0, 0, 0, 0.3);
+    --shadow-lift: 0 10px 24px rgba(0, 0, 0, 0.55), 0 2px 6px rgba(0, 0, 0, 0.4);
+    --shadow-modal: 0 20px 48px rgba(0, 0, 0, 0.6);
+    color-scheme: dark;
+  }
+  :root[data-theme="light"] {
+    --bg: #eef1ea;
+    --surface: #ffffff;
+    --panel: #e3e9df;
+    --panel-border: #cbd5c5;
+    --text: #1b231f;
+    --text-muted: #5c6960;
+    --accent: #3f6b52;
+    --accent-hover: #345a45;
+    --accent-contrast: #ffffff;
+    --danger: #b3492f;
+    --danger-hover: #95392a;
+    --focus-ring: rgba(63, 107, 82, 0.45);
+    --shadow-card: 0 1px 2px rgba(27, 35, 31, 0.12), 0 1px 1px rgba(27, 35, 31, 0.08);
+    --shadow-lift: 0 10px 22px rgba(27, 35, 31, 0.22), 0 2px 6px rgba(27, 35, 31, 0.14);
+    --shadow-modal: 0 20px 48px rgba(15, 20, 17, 0.35);
+    color-scheme: light;
+  }
+
+  * { box-sizing: border-box; }
+
+  body {
+    margin: 0;
+    min-height: 100vh;
+    background: var(--bg);
+    color: var(--text);
+    font-family: -apple-system, "Segoe UI", "Hiragino Sans", "Yu Gothic UI", "Helvetica Neue", Arial, sans-serif;
+    display: flex;
+    flex-direction: column;
+  }
+
+  .topbar {
+    display: flex;
+    align-items: baseline;
+    gap: 0.75rem;
+    padding: 1.1rem 1.5rem;
+    border-bottom: 1px solid var(--panel-border);
+    flex-wrap: wrap;
+  }
+
+  .topbar h1 {
+    font-size: 1.375rem;
+    font-weight: 700;
+    letter-spacing: -0.01em;
+    margin: 0;
+    text-wrap: balance;
+  }
+
+  .badge {
+    font-size: 0.6875rem;
+    font-weight: 600;
+    letter-spacing: 0.04em;
+    color: var(--accent-contrast);
+    background: var(--accent);
+    padding: 0.25rem 0.6rem;
+    border-radius: 999px;
+    white-space: nowrap;
+  }
+
+  .board {
+    flex: 1;
+    display: flex;
+    align-items: flex-start;
+    gap: 1rem;
+    padding: 1.25rem 1.5rem 2rem;
+    overflow-x: auto;
+  }
+
+  .list {
+    flex: 0 0 272px;
+    background: var(--panel);
+    border: 1px solid var(--panel-border);
+    border-radius: 10px;
+    display: flex;
+    flex-direction: column;
+    max-height: calc(100vh - 7rem);
+  }
+
+  .list.drag-over {
+    outline: 2px dashed var(--accent);
+    outline-offset: -2px;
+  }
+
+  .list-header {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    padding: 0.75rem 0.75rem 0.5rem;
+  }
+
+  .list-title {
+    flex: 1;
+    font-size: 0.9375rem;
+    font-weight: 700;
+    padding: 0.15rem 0.35rem;
+    border-radius: 5px;
+    cursor: text;
+    min-width: 0;
+    overflow-wrap: anywhere;
+  }
+
+  .list-title:hover {
+    background: rgba(0, 0, 0, 0.05);
+  }
+
+  .list-count {
+    font-variant-numeric: tabular-nums;
+    font-size: 0.75rem;
+    color: var(--text-muted);
+    background: var(--surface);
+    border: 1px solid var(--panel-border);
+    border-radius: 999px;
+    padding: 0.05rem 0.5rem;
+  }
+
+  .icon-btn {
+    appearance: none;
+    border: none;
+    background: transparent;
+    color: var(--text-muted);
+    font-size: 0.9rem;
+    line-height: 1;
+    width: 1.75rem;
+    height: 1.75rem;
+    border-radius: 6px;
+    cursor: pointer;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+  }
+
+  .icon-btn:hover {
+    background: rgba(0, 0, 0, 0.08);
+    color: var(--danger);
+  }
+
+  .card-list {
+    flex: 1;
+    overflow-y: auto;
+    padding: 0.25rem 0.75rem;
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+    min-height: 2.5rem;
+  }
+
+  .card {
+    background: var(--surface);
+    border: 1px solid var(--panel-border);
+    border-radius: 6px;
+    box-shadow: var(--shadow-card);
+    padding: 0.55rem 0.65rem;
+    font-size: 0.875rem;
+    line-height: 1.4;
+    cursor: grab;
+    position: relative;
+    display: flex;
+    align-items: flex-start;
+    gap: 0.4rem;
+    touch-action: none;
+  }
+
+  body.dnd-active {
+    cursor: grabbing;
+  }
+
+  body.dnd-active * {
+    user-select: none;
+  }
+
+  .card:active {
+    cursor: grabbing;
+  }
+
+  .card.dragging {
+    opacity: 0.35;
+  }
+
+  .card-title {
+    flex: 1;
+    min-width: 0;
+    overflow-wrap: anywhere;
+    border-radius: 4px;
+    padding: 0.05rem 0.2rem;
+  }
+
+  .card-title:hover {
+    background: rgba(0, 0, 0, 0.05);
+  }
+
+  .card-delete {
+    opacity: 0;
+    flex: none;
+  }
+
+  .card:hover .card-delete,
+  .card-delete:focus-visible {
+    opacity: 1;
+  }
+
+  .card-edit-input,
+  .list-title-input {
+    font: inherit;
+    font-weight: inherit;
+    color: inherit;
+    background: var(--surface);
+    border: 1px solid var(--accent);
+    border-radius: 4px;
+    padding: 0.05rem 0.2rem;
+    width: 100%;
+  }
+
+  .empty-hint {
+    color: var(--text-muted);
+    font-size: 0.8125rem;
+    padding: 0.35rem 0.15rem 0.6rem;
+  }
+
+  .composer {
+    padding: 0.35rem 0.75rem 0.75rem;
+  }
+
+  .add-trigger {
+    appearance: none;
+    width: 100%;
+    text-align: left;
+    background: transparent;
+    border: none;
+    color: var(--text-muted);
+    font-size: 0.8125rem;
+    font-weight: 600;
+    padding: 0.45rem 0.5rem;
+    border-radius: 6px;
+    cursor: pointer;
+  }
+
+  .add-trigger:hover {
+    background: rgba(0, 0, 0, 0.06);
+    color: var(--text);
+  }
+
+  .composer-form {
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+  }
+
+  .composer-form textarea,
+  .composer-form input[type="text"] {
+    font: inherit;
+    font-size: 0.875rem;
+    color: var(--text);
+    background: var(--surface);
+    border: 1px solid var(--panel-border);
+    border-radius: 6px;
+    padding: 0.5rem 0.6rem;
+    resize: none;
+    width: 100%;
+  }
+
+  .composer-form textarea:focus-visible,
+  .composer-form input:focus-visible,
+  .card-edit-input:focus-visible,
+  .list-title-input:focus-visible {
+    outline: 2px solid var(--accent);
+    outline-offset: 1px;
+  }
+
+  .composer-actions {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+  }
+
+  .btn-primary {
+    appearance: none;
+    border: none;
+    background: var(--accent);
+    color: var(--accent-contrast);
+    font: inherit;
+    font-size: 0.8125rem;
+    font-weight: 700;
+    padding: 0.4rem 0.85rem;
+    border-radius: 6px;
+    cursor: pointer;
+  }
+
+  .btn-primary:hover {
+    background: var(--accent-hover);
+  }
+
+  .btn-text {
+    appearance: none;
+    border: none;
+    background: transparent;
+    color: var(--text-muted);
+    font: inherit;
+    font-size: 0.8125rem;
+    font-weight: 600;
+    padding: 0.4rem 0.5rem;
+    border-radius: 6px;
+    cursor: pointer;
+  }
+
+  .btn-text:hover {
+    background: rgba(0, 0, 0, 0.06);
+    color: var(--text);
+  }
+
+  .add-list {
+    flex: 0 0 240px;
+  }
+
+  .add-list-trigger {
+    width: 100%;
+    appearance: none;
+    border: 1px dashed var(--panel-border);
+    background: transparent;
+    color: var(--text-muted);
+    font: inherit;
+    font-size: 0.875rem;
+    font-weight: 700;
+    padding: 0.75rem 1rem;
+    border-radius: 10px;
+    cursor: pointer;
+    text-align: left;
+  }
+
+  .add-list-trigger:hover {
+    border-color: var(--accent);
+    color: var(--accent);
+    background: var(--surface);
+  }
+
+  .add-list-panel {
+    background: var(--panel);
+    border: 1px solid var(--panel-border);
+    border-radius: 10px;
+    padding: 0.75rem;
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+  }
+
+  [hidden] {
+    display: none !important;
+  }
+
+  .modal-overlay {
+    position: fixed;
+    inset: 0;
+    background: rgba(15, 20, 17, 0.45);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 1rem;
+    z-index: 10;
+  }
+
+  .modal {
+    background: var(--surface);
+    border-radius: 12px;
+    box-shadow: var(--shadow-modal);
+    padding: 1.25rem;
+    width: 100%;
+    max-width: 320px;
+  }
+
+  .modal h2 {
+    font-size: 1rem;
+    margin: 0 0 0.4rem;
+  }
+
+  .modal p {
+    font-size: 0.875rem;
+    color: var(--text-muted);
+    margin: 0 0 1rem;
+    line-height: 1.5;
+  }
+
+  .modal-actions {
+    display: flex;
+    justify-content: flex-end;
+    gap: 0.5rem;
+  }
+
+  .btn-danger {
+    appearance: none;
+    border: none;
+    background: var(--danger);
+    color: #fff;
+    font: inherit;
+    font-size: 0.8125rem;
+    font-weight: 700;
+    padding: 0.4rem 0.85rem;
+    border-radius: 6px;
+    cursor: pointer;
+  }
+
+  .btn-danger:hover {
+    background: var(--danger-hover);
+  }
+
+  @media (prefers-reduced-motion: no-preference) {
+    .card {
+      transition: box-shadow 120ms ease, opacity 120ms ease;
+    }
+    .card.dragging {
+      box-shadow: var(--shadow-lift);
+    }
+  }
+</style>
+</head>
+<body>
+
+<div class="topbar">
+  <h1>Trello風タスク管理</h1>
+  <span class="badge">プロトタイプ・データは保存されません</span>
+</div>
+
+<main class="board" id="board" aria-label="カンバンボード"></main>
+
+<div class="modal-overlay" id="confirmOverlay" hidden>
+  <div class="modal" role="alertdialog" aria-modal="true" aria-labelledby="confirmTitle" aria-describedby="confirmBody">
+    <h2 id="confirmTitle">リストを削除しますか？</h2>
+    <p id="confirmBody">中のカードもすべて削除されます。この操作は元に戻せません。</p>
+    <div class="modal-actions">
+      <button type="button" class="btn-text" id="confirmCancel">キャンセル</button>
+      <button type="button" class="btn-danger" id="confirmDelete">削除する</button>
+    </div>
+  </div>
+</div>
+
+<script>
+  (function () {
+    "use strict";
+
+    var state = {
+      lists: [
+        {
+          id: "list-1",
+          title: "未着手",
+          cards: [
+            { id: "card-1", title: "要件定義書のレビュー" },
+            { id: "card-2", title: "画面ワイヤーフレームの作成" },
+            { id: "card-3", title: "IndexedDBのスキーマ設計" }
+          ]
+        },
+        {
+          id: "list-2",
+          title: "進行中",
+          cards: [
+            { id: "card-4", title: "画面プロトタイプの作成" },
+            { id: "card-5", title: "@dnd-kit の検証" }
+          ]
+        },
+        {
+          id: "list-3",
+          title: "完了",
+          cards: [
+            { id: "card-6", title: "技術スタックの選定" }
+          ]
+        }
+      ]
+    };
+
+    var nextId = 100;
+    function makeId(prefix) {
+      nextId += 1;
+      return prefix + "-" + nextId;
+    }
+
+    var board = document.getElementById("board");
+    var confirmOverlay = document.getElementById("confirmOverlay");
+    var confirmCancel = document.getElementById("confirmCancel");
+    var confirmDelete = document.getElementById("confirmDelete");
+    var pendingDeleteListId = null;
+
+    var dragCardId = null;
+    var dragSourceListId = null;
+
+    function findList(listId) {
+      for (var i = 0; i < state.lists.length; i++) {
+        if (state.lists[i].id === listId) return state.lists[i];
+      }
+      return null;
+    }
+
+    function findCardLocation(cardId) {
+      for (var i = 0; i < state.lists.length; i++) {
+        var list = state.lists[i];
+        for (var j = 0; j < list.cards.length; j++) {
+          if (list.cards[j].id === cardId) {
+            return { list: list, index: j, card: list.cards[j] };
+          }
+        }
+      }
+      return null;
+    }
+
+    function render() {
+      board.innerHTML = "";
+      state.lists.forEach(function (list) {
+        board.appendChild(renderList(list));
+      });
+      board.appendChild(renderAddList());
+    }
+
+    function renderList(list) {
+      var el = document.createElement("section");
+      el.className = "list";
+      el.dataset.listId = list.id;
+      el.setAttribute("aria-label", list.title + "リスト");
+
+      var header = document.createElement("div");
+      header.className = "list-header";
+
+      var title = document.createElement("h2");
+      title.className = "list-title";
+      title.textContent = list.title;
+      title.tabIndex = 0;
+      title.setAttribute("role", "button");
+      title.title = "クリックしてリスト名を編集";
+      title.addEventListener("click", function () {
+        startListTitleEdit(el, list);
+      });
+      title.addEventListener("keydown", function (e) {
+        if (e.key === "Enter") startListTitleEdit(el, list);
+      });
+
+      var count = document.createElement("span");
+      count.className = "list-count";
+      count.textContent = list.cards.length;
+
+      var deleteBtn = document.createElement("button");
+      deleteBtn.type = "button";
+      deleteBtn.className = "icon-btn";
+      deleteBtn.setAttribute("aria-label", list.title + "リストを削除");
+      deleteBtn.textContent = "×";
+      deleteBtn.addEventListener("click", function () {
+        openDeleteConfirm(list.id);
+      });
+
+      header.appendChild(title);
+      header.appendChild(count);
+      header.appendChild(deleteBtn);
+
+      var cardList = document.createElement("div");
+      cardList.className = "card-list";
+      cardList.dataset.listId = list.id;
+
+      if (list.cards.length === 0) {
+        var hint = document.createElement("p");
+        hint.className = "empty-hint";
+        hint.textContent = "カードがありません";
+        cardList.appendChild(hint);
+      } else {
+        list.cards.forEach(function (card) {
+          cardList.appendChild(renderCard(card));
+        });
+      }
+
+      var composer = renderCardComposer(list);
+
+      el.appendChild(header);
+      el.appendChild(cardList);
+      el.appendChild(composer);
+      return el;
+    }
+
+    function renderCard(card) {
+      var el = document.createElement("article");
+      el.className = "card";
+      el.dataset.cardId = card.id;
+
+      var title = document.createElement("span");
+      title.className = "card-title";
+      title.textContent = card.title;
+      title.tabIndex = 0;
+      title.title = "クリックしてタイトルを編集";
+      title.addEventListener("click", function (e) {
+        e.stopPropagation();
+        startCardTitleEdit(el, card);
+      });
+
+      var deleteBtn = document.createElement("button");
+      deleteBtn.type = "button";
+      deleteBtn.className = "icon-btn card-delete";
+      deleteBtn.setAttribute("aria-label", "カードを削除");
+      deleteBtn.textContent = "×";
+      deleteBtn.addEventListener("click", function (e) {
+        e.stopPropagation();
+        deleteCard(card.id);
+      });
+
+      el.appendChild(title);
+      el.appendChild(deleteBtn);
+
+      el.addEventListener("pointerdown", function (e) {
+        handleCardPointerDown(e, card, el);
+      });
+
+      return el;
+    }
+
+    function handleCardPointerDown(e, card, el) {
+      if (e.button !== 0 && e.pointerType === "mouse") return;
+      if (e.target.closest("button, input")) return;
+      if (el.querySelector(".card-edit-input")) return;
+
+      var pointerId = e.pointerId;
+      var startX = e.clientX;
+      var startY = e.clientY;
+      var dragging = false;
+
+      function onMove(ev) {
+        if (ev.pointerId !== pointerId) return;
+        if (!dragging) {
+          if (Math.abs(ev.clientX - startX) < 4 && Math.abs(ev.clientY - startY) < 4) return;
+          dragging = true;
+          dragCardId = card.id;
+          var loc = findCardLocation(card.id);
+          dragSourceListId = loc ? loc.list.id : null;
+          el.classList.add("dragging");
+          document.body.classList.add("dnd-active");
+        }
+        ev.preventDefault();
+        updateDragPosition(ev.clientX, ev.clientY, el);
+      }
+
+      function onUp(ev) {
+        if (ev.pointerId !== pointerId) return;
+        document.removeEventListener("pointermove", onMove);
+        document.removeEventListener("pointerup", onUp);
+        document.removeEventListener("pointercancel", onUp);
+        if (!dragging) return;
+
+        el.classList.remove("dragging");
+        document.body.classList.remove("dnd-active");
+        document.querySelectorAll(".list.drag-over").forEach(function (n) {
+          n.classList.remove("drag-over");
+        });
+
+        var targetListEl = el.closest(".card-list");
+        var targetListId = targetListEl ? targetListEl.dataset.listId : dragSourceListId;
+        commitDomOrderToState(targetListId, card.id);
+        dragCardId = null;
+        dragSourceListId = null;
+      }
+
+      document.addEventListener("pointermove", onMove);
+      document.addEventListener("pointerup", onUp);
+      document.addEventListener("pointercancel", onUp);
+    }
+
+    function updateDragPosition(clientX, clientY, draggingEl) {
+      var overEl = document.elementFromPoint(clientX, clientY);
+      var cardListEl = overEl ? overEl.closest(".card-list") : null;
+
+      document.querySelectorAll(".list.drag-over").forEach(function (n) {
+        n.classList.remove("drag-over");
+      });
+
+      if (!cardListEl) return;
+
+      var listEl = cardListEl.closest(".list");
+      listEl.classList.add("drag-over");
+
+      var emptyHint = cardListEl.querySelector(".empty-hint");
+      if (emptyHint) emptyHint.remove();
+
+      var afterEl = getCardAfterY(cardListEl, clientY, draggingEl);
+      if (afterEl === null) {
+        cardListEl.appendChild(draggingEl);
+      } else if (afterEl !== draggingEl) {
+        cardListEl.insertBefore(draggingEl, afterEl);
+      }
+    }
+
+    function getCardAfterY(container, y, ignoreEl) {
+      var cards = Array.prototype.slice
+        .call(container.querySelectorAll(".card"))
+        .filter(function (c) {
+          return c !== ignoreEl;
+        });
+      var closest = null;
+      var closestOffset = Number.NEGATIVE_INFINITY;
+      cards.forEach(function (c) {
+        var box = c.getBoundingClientRect();
+        var offset = y - box.top - box.height / 2;
+        if (offset < 0 && offset > closestOffset) {
+          closestOffset = offset;
+          closest = c;
+        }
+      });
+      return closest;
+    }
+
+    function commitDomOrderToState(targetListId, cardId) {
+      var loc = findCardLocation(cardId);
+      if (!loc) return;
+      var card = loc.card;
+      var sourceList = loc.list;
+      var targetList = findList(targetListId);
+      if (!targetList) return;
+
+      sourceList.cards.splice(loc.index, 1);
+
+      var cardListEl = board.querySelector('.card-list[data-list-id="' + targetListId + '"]');
+      var domIds = Array.prototype.map.call(cardListEl.querySelectorAll(".card"), function (n) {
+        return n.dataset.cardId;
+      });
+      var insertAt = domIds.indexOf(card.id);
+      if (insertAt === -1) insertAt = targetList.cards.length;
+      targetList.cards.splice(insertAt, 0, card);
+
+      render();
+    }
+
+    function renderCardComposer(list) {
+      var wrap = document.createElement("div");
+      wrap.className = "composer";
+
+      var trigger = document.createElement("button");
+      trigger.type = "button";
+      trigger.className = "add-trigger";
+      trigger.textContent = "+ カードを追加";
+
+      var form = document.createElement("div");
+      form.className = "composer-form";
+      form.hidden = true;
+
+      var textarea = document.createElement("textarea");
+      textarea.rows = 2;
+      textarea.placeholder = "カードのタイトルを入力";
+
+      var actions = document.createElement("div");
+      actions.className = "composer-actions";
+
+      var addBtn = document.createElement("button");
+      addBtn.type = "button";
+      addBtn.className = "btn-primary";
+      addBtn.textContent = "追加";
+
+      var cancelBtn = document.createElement("button");
+      cancelBtn.type = "button";
+      cancelBtn.className = "btn-text";
+      cancelBtn.textContent = "キャンセル";
+
+      actions.appendChild(addBtn);
+      actions.appendChild(cancelBtn);
+      form.appendChild(textarea);
+      form.appendChild(actions);
+
+      function open() {
+        trigger.hidden = true;
+        form.hidden = false;
+        textarea.value = "";
+        textarea.focus();
+      }
+      function close() {
+        form.hidden = true;
+        trigger.hidden = false;
+      }
+      function submit() {
+        var value = textarea.value.trim();
+        if (value) {
+          list.cards.push({ id: makeId("card"), title: value });
+          render();
+          return;
+        }
+        close();
+      }
+
+      trigger.addEventListener("click", open);
+      cancelBtn.addEventListener("click", close);
+      addBtn.addEventListener("click", submit);
+      textarea.addEventListener("keydown", function (e) {
+        if (e.key === "Enter" && !e.shiftKey) {
+          e.preventDefault();
+          submit();
+        } else if (e.key === "Escape") {
+          close();
+        }
+      });
+
+      wrap.appendChild(trigger);
+      wrap.appendChild(form);
+      return wrap;
+    }
+
+    function renderAddList() {
+      var wrap = document.createElement("div");
+      wrap.className = "add-list";
+
+      var trigger = document.createElement("button");
+      trigger.type = "button";
+      trigger.className = "add-list-trigger";
+      trigger.textContent = "+ リストを追加";
+
+      var panel = document.createElement("div");
+      panel.className = "add-list-panel";
+      panel.hidden = true;
+
+      var input = document.createElement("input");
+      input.type = "text";
+      input.placeholder = "リスト名を入力";
+
+      var actions = document.createElement("div");
+      actions.className = "composer-actions";
+
+      var addBtn = document.createElement("button");
+      addBtn.type = "button";
+      addBtn.className = "btn-primary";
+      addBtn.textContent = "追加";
+
+      var cancelBtn = document.createElement("button");
+      cancelBtn.type = "button";
+      cancelBtn.className = "btn-text";
+      cancelBtn.textContent = "キャンセル";
+
+      actions.appendChild(addBtn);
+      actions.appendChild(cancelBtn);
+      panel.appendChild(input);
+      panel.appendChild(actions);
+
+      function open() {
+        trigger.hidden = true;
+        panel.hidden = false;
+        input.value = "";
+        input.focus();
+      }
+      function close() {
+        panel.hidden = true;
+        trigger.hidden = false;
+      }
+      function submit() {
+        var value = input.value.trim();
+        if (value) {
+          state.lists.push({ id: makeId("list"), title: value, cards: [] });
+          render();
+          return;
+        }
+        close();
+      }
+
+      trigger.addEventListener("click", open);
+      cancelBtn.addEventListener("click", close);
+      addBtn.addEventListener("click", submit);
+      input.addEventListener("keydown", function (e) {
+        if (e.key === "Enter") submit();
+        if (e.key === "Escape") close();
+      });
+
+      wrap.appendChild(trigger);
+      wrap.appendChild(panel);
+      return wrap;
+    }
+
+    function startCardTitleEdit(cardEl, card) {
+      var titleEl = cardEl.querySelector(".card-title");
+      var input = document.createElement("input");
+      input.type = "text";
+      input.className = "card-edit-input";
+      input.value = card.title;
+      titleEl.replaceWith(input);
+      input.focus();
+      input.select();
+
+      function commit() {
+        var value = input.value.trim();
+        card.title = value || card.title;
+        render();
+      }
+      input.addEventListener("blur", commit);
+      input.addEventListener("keydown", function (e) {
+        if (e.key === "Enter") {
+          e.preventDefault();
+          input.blur();
+        } else if (e.key === "Escape") {
+          render();
+        }
+      });
+    }
+
+    function startListTitleEdit(listEl, list) {
+      var titleEl = listEl.querySelector(".list-title");
+      var input = document.createElement("input");
+      input.type = "text";
+      input.className = "list-title-input";
+      input.value = list.title;
+      titleEl.replaceWith(input);
+      input.focus();
+      input.select();
+
+      function commit() {
+        var value = input.value.trim();
+        list.title = value || list.title;
+        render();
+      }
+      input.addEventListener("blur", commit);
+      input.addEventListener("keydown", function (e) {
+        if (e.key === "Enter") {
+          e.preventDefault();
+          input.blur();
+        } else if (e.key === "Escape") {
+          render();
+        }
+      });
+    }
+
+    function deleteCard(cardId) {
+      var loc = findCardLocation(cardId);
+      if (!loc) return;
+      loc.list.cards.splice(loc.index, 1);
+      render();
+    }
+
+    function openDeleteConfirm(listId) {
+      pendingDeleteListId = listId;
+      confirmOverlay.hidden = false;
+      confirmDelete.focus();
+    }
+    function closeDeleteConfirm() {
+      pendingDeleteListId = null;
+      confirmOverlay.hidden = true;
+    }
+    confirmCancel.addEventListener("click", closeDeleteConfirm);
+    confirmDelete.addEventListener("click", function () {
+      if (pendingDeleteListId) {
+        state.lists = state.lists.filter(function (l) {
+          return l.id !== pendingDeleteListId;
+        });
+      }
+      closeDeleteConfirm();
+      render();
+    });
+    confirmOverlay.addEventListener("click", function (e) {
+      if (e.target === confirmOverlay) closeDeleteConfirm();
+    });
+    document.addEventListener("keydown", function (e) {
+      if (e.key === "Escape" && !confirmOverlay.hidden) closeDeleteConfirm();
+    });
+
+    render();
+  })();
+</script>
+</body>
+</html>
