@@ -12,3 +12,4 @@
 - v2: カード詳細(説明など残りの項目)を追加
 - v3: 複数ボード対応
 - v4: バックエンド連携(Java + Spring Boot製REST API + PostgreSQL)。IndexedDBでの永続化からバックエンドAPI経由の永続化へ置き換え、複数人での共有・認証などはさらに先の検討課題とする
+  - 2026-08-02時点で着手済み: `docker-compose.yml`(PostgreSQL)と`backend/`(Spring Boot雛形・DB接続確認)を追加。List/CardのCRUD APIとフロントエンド連携は未着手
