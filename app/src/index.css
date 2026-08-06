@@ -100,6 +100,70 @@ body {
   border-radius: 999px;
 }
 
+.view-tabs {
+  display: flex;
+  gap: 0.35rem;
+  margin-left: auto;
+}
+
+.view-tab {
+  appearance: none;
+  border: 1px solid var(--panel-border);
+  background: var(--surface);
+  color: var(--text-muted);
+  font-size: 0.8125rem;
+  font-weight: 600;
+  padding: 0.35rem 0.75rem;
+  border-radius: 999px;
+  cursor: pointer;
+}
+
+.view-tab:hover {
+  border-color: var(--accent);
+  color: var(--accent);
+}
+
+.view-tab.active {
+  background: var(--accent);
+  border-color: var(--accent);
+  color: var(--accent-contrast);
+}
+
+.search-bar {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.6rem;
+  padding: 1rem 1.5rem 0;
+}
+
+.search-input,
+.search-select {
+  font: inherit;
+  color: var(--text);
+  background: var(--surface);
+  border: 1px solid var(--panel-border);
+  border-radius: 6px;
+  padding: 0.4rem 0.6rem;
+}
+
+.search-input {
+  flex: 1 1 220px;
+  min-width: 160px;
+}
+
+.search-input:focus-visible,
+.search-select:focus-visible,
+.view-tab:focus-visible {
+  outline: 2px solid var(--focus-ring);
+  outline-offset: 2px;
+}
+
+.search-status {
+  padding: 0 1.5rem;
+  color: var(--text-muted);
+  font-size: 0.8125rem;
+}
+
 .board {
   flex: 1;
   display: flex;
