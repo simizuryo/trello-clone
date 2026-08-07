@@ -1,8 +1,10 @@
+import { useState } from "react";
 import { BoardProvider, useBoard } from "./context/BoardContext";
 import Board from "./components/Board";
+import SearchBoardScreen from "./components/SearchBoardScreen";
 
 function BoardScreen() {
-  const { status, error, saveError } = useBoard();
+  const { status, error } = useBoard();
 
   if (status === "loading") {
     return (
@@ -20,21 +22,49 @@ function BoardScreen() {
     );
   }
 
+  return <Board />;
+}
+
+function AppShell({ view, onChangeView }) {
+  const { saveError } = useBoard();
+
   return (
     <>
       <div className="topbar">
         <h1>Trello風タスク管理</h1>
-        {saveError && <span className="error-banner">{saveError}</span>}
+        {view === "local" && saveError && <span className="error-banner">{saveError}</span>}
+        <div className="view-tabs" role="tablist" aria-label="表示切り替え">
+          <button
+            type="button"
+            role="tab"
+            aria-selected={view === "local"}
+            className={`view-tab${view === "local" ? " active" : ""}`}
+            onClick={() => onChangeView("local")}
+          >
+            マイボード
+          </button>
+          <button
+            type="button"
+            role="tab"
+            aria-selected={view === "search"}
+            className={`view-tab${view === "search" ? " active" : ""}`}
+            onClick={() => onChangeView("search")}
+          >
+            検索(サーバー)
+          </button>
+        </div>
       </div>
-      <Board />
+      {view === "local" ? <BoardScreen /> : <SearchBoardScreen />}
     </>
   );
 }
 
 export default function App() {
+  const [view, setView] = useState("local");
+
   return (
     <BoardProvider>
-      <BoardScreen />
+      <AppShell view={view} onChangeView={setView} />
     </BoardProvider>
   );
 }

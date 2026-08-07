@@ -1,14 +1,7 @@
 import { useState } from "react";
 import { useSortable } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
-
-const PRIORITY_LABEL = { high: "高", medium: "中", low: "低" };
-
-function formatDueDate(dueDate) {
-  if (!dueDate) return null;
-  const [, month, day] = dueDate.split("-");
-  return `${Number(month)}/${Number(day)}`;
-}
+import { PRIORITY_LABEL, formatDueDate } from "../utils/cardFormat";
 
 export default function Card({ card, onUpdate, onDelete }) {
   const [isEditing, setIsEditing] = useState(false);
