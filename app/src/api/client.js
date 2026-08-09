@@ -8,6 +8,18 @@ async function getJson(path) {
   return res.json();
 }
 
+async function postJson(path, body) {
+  const res = await fetch(`${API_BASE_URL}${path}`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(body),
+  });
+  if (!res.ok) {
+    throw new Error(`API request failed: ${res.status} ${path}`);
+  }
+  return res.json();
+}
+
 export function fetchLists() {
   return getJson("/api/lists");
 }
@@ -19,4 +31,12 @@ export function searchCards({ listId, priority, keyword } = {}) {
   if (keyword) params.set("keyword", keyword);
   const query = params.toString();
   return getJson(`/api/cards${query ? `?${query}` : ""}`);
+}
+
+export function createList({ title }) {
+  return postJson("/api/lists", { title });
+}
+
+export function createCard({ listId, title, priority, dueDate }) {
+  return postJson("/api/cards", { listId, title, priority: priority || null, dueDate: dueDate || null });
 }

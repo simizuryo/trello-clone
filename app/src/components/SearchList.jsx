@@ -1,6 +1,7 @@
 import SearchCard from "./SearchCard";
+import AddCardForm from "./AddCardForm";
 
-export default function SearchList({ list, cards }) {
+export default function SearchList({ list, cards, onAddCard }) {
   return (
     <section className="list" aria-label={`${list.title}リスト`}>
       <div className="list-header">
@@ -14,6 +15,8 @@ export default function SearchList({ list, cards }) {
           <SearchCard key={card.id} card={card} />
         ))}
       </div>
+
+      <AddCardForm onSubmit={(title) => onAddCard(list.id, title)} />
     </section>
   );
 }
