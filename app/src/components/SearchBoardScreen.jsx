@@ -1,7 +1,8 @@
 import { useEffect, useState } from "react";
-import { fetchLists, searchCards } from "../api/client";
+import { createCard, createList, fetchLists, searchCards } from "../api/client";
 import { useDebouncedValue } from "../hooks/useDebouncedValue";
 import SearchList from "./SearchList";
+import AddListForm from "./AddListForm";
 
 export default function SearchBoardScreen() {
   const [keyword, setKeyword] = useState("");
@@ -11,6 +12,7 @@ export default function SearchBoardScreen() {
   const [cards, setCards] = useState([]);
   const [status, setStatus] = useState("loading");
   const [error, setError] = useState(null);
+  const [actionError, setActionError] = useState(null);
 
   const debouncedKeyword = useDebouncedValue(keyword, 300);
 
@@ -42,6 +44,26 @@ export default function SearchBoardScreen() {
       cancelled = true;
     };
   }, [debouncedKeyword, priority, listId]);
+
+  async function handleAddCard(listId, title) {
+    setActionError(null);
+    try {
+      const card = await createCard({ listId, title });
+      setCards((prev) => [...prev, card]);
+    } catch (err) {
+      setActionError(err.message || "カードの追加に失敗しました");
+    }
+  }
+
+  async function handleAddList(title) {
+    setActionError(null);
+    try {
+      const list = await createList({ title });
+      setLists((prev) => [...prev, list]);
+    } catch (err) {
+      setActionError(err.message || "リストの追加に失敗しました");
+    }
+  }
 
   const cardsByListId = new Map();
   for (const card of cards) {
@@ -89,11 +111,18 @@ export default function SearchBoardScreen() {
 
       {status === "loading" && <p className="search-status">検索中...</p>}
       {status === "error" && <p className="error-message">検索結果を取得できませんでした: {error}</p>}
+      {actionError && <p className="error-message">{actionError}</p>}
 
       <main className="board" aria-label="検索結果ボード">
         {lists.map((list) => (
-          <SearchList key={list.id} list={list} cards={cardsByListId.get(list.id) ?? []} />
+          <SearchList
+            key={list.id}
+            list={list}
+            cards={cardsByListId.get(list.id) ?? []}
+            onAddCard={handleAddCard}
+          />
         ))}
+        <AddListForm onSubmit={handleAddList} />
       </main>
     </>
   );

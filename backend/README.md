@@ -1,7 +1,7 @@
 # trello-clone-backend
 
 学習用Trello風タスク管理アプリのバックエンド(Spring Boot + PostgreSQL)。
-List/CardのREAD・検索APIまで実装済み。Create/Update/Deleteは未実装(別Issueで対応予定)。
+List/CardのREAD・検索・新規作成APIまで実装済み。Update/Deleteは未実装(別Issueで対応予定)。
 
 ## 前提
 
@@ -62,19 +62,27 @@ curl http://localhost:8080/actuator/health
 
 起動時にFlywayマイグレーションでスキーマ作成とテストデータ投入まで行われます。
 
-| メソッド | パス | クエリパラメータ | 説明 |
+| メソッド | パス | クエリパラメータ / リクエストボディ | 説明 |
 |---|---|---|---|
 | GET | `/api/lists` | なし | リスト一覧(`sortOrder`昇順) |
 | GET | `/api/lists/{id}` | なし | リスト単体取得(無ければ404) |
+| POST | `/api/lists` | `{ "title": string }` | リスト新規作成(末尾に追加、`sortOrder`は自動採番)。`title`未指定/空は400 |
 | GET | `/api/cards` | `listId`, `priority`(`HIGH`/`MEDIUM`/`LOW`), `keyword`(タイトル部分一致・大文字小文字区別なし) | カード検索(全パラメータ省略可・複数指定時はAND、`list.id`→`sortOrder`昇順) |
 | GET | `/api/cards/{id}` | なし | カード単体取得(無ければ404) |
+| POST | `/api/cards` | `{ "listId": number, "title": string, "priority"?: "HIGH"\|"MEDIUM"\|"LOW"\|null, "dueDate"?: "YYYY-MM-DD"\|null }` | カード新規作成(指定リストの末尾に追加、`sortOrder`は自動採番)。`title`未指定/空・`listId`未指定・存在しない`listId`・不正な`priority`は400 |
 
 ```bash
 curl http://localhost:8080/api/lists
 curl "http://localhost:8080/api/cards?priority=HIGH&keyword=%E3%83%AC%E3%83%93%E3%83%A5%E3%83%BC"
+curl -X POST http://localhost:8080/api/lists \
+  -H "Content-Type: application/json" \
+  -d '{"title":"レビュー待ち"}'
+curl -X POST http://localhost:8080/api/cards \
+  -H "Content-Type: application/json" \
+  -d '{"listId":1,"title":"新しいタスク","priority":"MEDIUM","dueDate":"2026-09-01"}'
 ```
 
-CORSは `application.yml` の `app.cors.allowed-origins` で許可オリジンを設定しています(デフォルトはフロントエンド(`app/`)の開発サーバー `http://localhost:5173`)。
+CORSは `application.yml` の `app.cors.allowed-origins` で許可オリジンを設定しています(デフォルトはフロントエンド(`app/`)の開発サーバー `http://localhost:5173`)。許可メソッドは `GET`, `POST` です。
 
 ## 停止・後片付け
 
