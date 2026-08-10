@@ -1,7 +1,7 @@
 # trello-clone-backend
 
 学習用Trello風タスク管理アプリのバックエンド(Spring Boot + PostgreSQL)。
-List/CardのREAD・検索・新規作成APIまで実装済み。Update/Deleteは未実装(別Issueで対応予定)。
+List/CardのREAD・検索・新規作成・カードのUpdate(タイトル/優先度/期限・並び替え/リスト間移動)まで実装済み。Deleteは未実装(別Issueで対応予定)。
 
 ## 前提
 
@@ -70,6 +70,8 @@ curl http://localhost:8080/actuator/health
 | GET | `/api/cards` | `listId`, `priority`(`HIGH`/`MEDIUM`/`LOW`), `keyword`(タイトル部分一致・大文字小文字区別なし) | カード検索(全パラメータ省略可・複数指定時はAND、`list.id`→`sortOrder`昇順) |
 | GET | `/api/cards/{id}` | なし | カード単体取得(無ければ404) |
 | POST | `/api/cards` | `{ "listId": number, "title": string, "priority"?: "HIGH"\|"MEDIUM"\|"LOW"\|null, "dueDate"?: "YYYY-MM-DD"\|null }` | カード新規作成(指定リストの末尾に追加、`sortOrder`は自動採番)。`title`未指定/空・`listId`未指定・存在しない`listId`・不正な`priority`は400 |
+| PATCH | `/api/cards/{id}` | `{ "title": string, "priority"?: "HIGH"\|"MEDIUM"\|"LOW"\|null, "dueDate"?: "YYYY-MM-DD"\|null }` | カードのタイトル・優先度・期限を更新(3項目とも置き換え)。`title`未指定/空は400、存在しない`id`は404、不正な`priority`は400 |
+| PATCH | `/api/cards/{id}/position` | `{ "listId": number, "sortOrder": number }` | カードを指定リストの指定位置(0始まり)へ移動。同一リスト内なら並び替え、別リストなら移動(「完了」を表すリストへ移動すれば完了切替を兼ねる)。移動元・移動先リストの`sortOrder`は隙間なく再採番される。`listId`/`sortOrder`未指定は400、存在しないカード/リストはそれぞれ404/400 |
 
 ```bash
 curl http://localhost:8080/api/lists
@@ -80,9 +82,15 @@ curl -X POST http://localhost:8080/api/lists \
 curl -X POST http://localhost:8080/api/cards \
   -H "Content-Type: application/json" \
   -d '{"listId":1,"title":"新しいタスク","priority":"MEDIUM","dueDate":"2026-09-01"}'
+curl -X PATCH http://localhost:8080/api/cards/1 \
+  -H "Content-Type: application/json" \
+  -d '{"title":"新しいタスク","priority":"HIGH","dueDate":"2026-09-10"}'
+curl -X PATCH http://localhost:8080/api/cards/1/position \
+  -H "Content-Type: application/json" \
+  -d '{"listId":3,"sortOrder":0}'
 ```
 
-CORSは `application.yml` の `app.cors.allowed-origins` で許可オリジンを設定しています(デフォルトはフロントエンド(`app/`)の開発サーバー `http://localhost:5173`)。許可メソッドは `GET`, `POST` です。
+CORSは `application.yml` の `app.cors.allowed-origins` で許可オリジンを設定しています(デフォルトはフロントエンド(`app/`)の開発サーバー `http://localhost:5173`)。許可メソッドは `GET`, `POST`, `PATCH` です。
 
 ## 停止・後片付け
 
