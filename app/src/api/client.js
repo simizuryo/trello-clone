@@ -20,6 +20,18 @@ async function postJson(path, body) {
   return res.json();
 }
 
+async function patchJson(path, body) {
+  const res = await fetch(`${API_BASE_URL}${path}`, {
+    method: "PATCH",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(body),
+  });
+  if (!res.ok) {
+    throw new Error(`API request failed: ${res.status} ${path}`);
+  }
+  return res.json();
+}
+
 export function fetchLists() {
   return getJson("/api/lists");
 }
@@ -39,4 +51,12 @@ export function createList({ title }) {
 
 export function createCard({ listId, title, priority, dueDate }) {
   return postJson("/api/cards", { listId, title, priority: priority || null, dueDate: dueDate || null });
+}
+
+export function updateCardDetails(id, { title, priority, dueDate }) {
+  return patchJson(`/api/cards/${id}`, { title, priority: priority || null, dueDate: dueDate || null });
+}
+
+export function moveCard(id, { listId, sortOrder }) {
+  return patchJson(`/api/cards/${id}/position`, { listId, sortOrder });
 }
