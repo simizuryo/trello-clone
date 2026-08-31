@@ -5,9 +5,9 @@ spring:
   application:
     name: trello-clone-backend
   datasource:
-    url: jdbc:postgresql://localhost:5432/trello_clone
-    username: trello
-    password: trello
+    url: ${SPRING_DATASOURCE_URL:jdbc:postgresql://localhost:5432/trello_clone}
+    username: ${SPRING_DATASOURCE_USERNAME:trello}
+    password: ${SPRING_DATASOURCE_PASSWORD:trello}
     driver-class-name: org.postgresql.Driver
   jpa:
     hibernate:
@@ -28,4 +28,4 @@ management:
 
 app:
   cors:
-    allowed-origins: http://localhost:5173
+    allowed-origins: ${APP_CORS_ALLOWED_ORIGINS:http://localhost:5173}
