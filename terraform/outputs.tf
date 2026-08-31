@@ -1,6 +1,11 @@
-output "alb_dns_name" {
-  description = "バックエンドAPIのエンドポイント(ALB)。フロントエンドのVITE_API_BASE_URLに使う"
-  value       = "http://${aws_lb.backend.dns_name}"
+output "backend_url" {
+  description = "バックエンドAPIのエンドポイント(EC2のElastic IP)。フロントエンドのVITE_API_BASE_URLに使う"
+  value       = "http://${aws_eip.backend.public_ip}"
+}
+
+output "ec2_instance_id" {
+  description = "バックエンドを動かすEC2のインスタンスID。aws ssm start-session --target で使う"
+  value       = aws_instance.backend.id
 }
 
 output "cloudfront_domain_name" {
@@ -28,12 +33,3 @@ output "cloudfront_distribution_id" {
   value       = aws_cloudfront_distribution.frontend.id
 }
 
-output "ecs_cluster_name" {
-  description = "ECSクラスタ名"
-  value       = aws_ecs_cluster.main.name
-}
-
-output "ecs_service_name" {
-  description = "ECSサービス名(再デプロイ時にaws ecs update-serviceで使う)"
-  value       = aws_ecs_service.backend.name
-}

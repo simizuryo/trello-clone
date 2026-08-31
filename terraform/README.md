@@ -17,13 +17,13 @@ AWS上にこのアプリをデプロイするためのTerraformコード。初�
 | `providers.tf` | AWSプロバイダ設定 |
 | `variables.tf` | 変数定義 |
 | `network.tf` | VPC・サブネット・ルートテーブル |
-| `security_groups.tf` | ALB/ECS/RDS用セキュリティグループ |
+| `security_groups.tf` | アプリ(EC2)/RDS用セキュリティグループ |
 | `ecr.tf` | バックエンドイメージ用ECRリポジトリ |
 | `rds.tf` | RDS(PostgreSQL)・Secrets Manager(DBパスワード) |
-| `alb.tf` | ALB・ターゲットグループ・リスナー |
-| `ecs.tf` | ECSクラスタ・タスク定義・サービス・IAMロール |
+| `ec2.tf` | バックエンドを動かすEC2インスタンス・Elastic IP・IAMロール |
+| `templates/deploy-backend.sh.tpl` | EC2起動時/再デプロイ時に実行するデプロイスクリプト |
 | `s3_cloudfront.tf` | フロントエンド配信用S3・CloudFront |
-| `outputs.tf` | apply後に表示される値(ALBのURL、CloudFrontのURL等) |
+| `outputs.tf` | apply後に表示される値(バックエンドURL、CloudFrontのURL等) |
 
 ## 使い方
 

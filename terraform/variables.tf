@@ -47,37 +47,19 @@ variable "db_allocated_storage" {
 }
 
 variable "container_image_tag" {
-  description = "ECSタスク定義に使うバックエンドイメージのタグ(ECRへpush後に更新してapplyする)"
+  description = "EC2上で起動するバックエンドイメージのタグ(ECRへpush後に更新してapplyするか、再デプロイスクリプトで反映する)"
   type        = string
   default     = "latest"
 }
 
 variable "backend_container_port" {
-  description = "バックエンドコンテナがリッスンするポート"
+  description = "バックエンドコンテナがリッスンするポート(コンテナ内部。ホスト側は80で公開する)"
   type        = number
   default     = 8080
 }
 
-variable "ecs_task_cpu" {
-  description = "ECSタスクのCPUユニット(Fargateの組み合わせ制約に従うこと)"
+variable "ec2_instance_type" {
+  description = "バックエンドを動かすEC2インスタンスタイプ(t3.microはap-northeast-1の無料利用枠対象)"
   type        = string
-  default     = "256"
-}
-
-variable "ecs_task_memory" {
-  description = "ECSタスクのメモリ(MiB)"
-  type        = string
-  default     = "512"
-}
-
-variable "ecs_desired_count" {
-  description = "ECSサービスの起動タスク数"
-  type        = number
-  default     = 1
-}
-
-variable "log_retention_days" {
-  description = "CloudWatch Logsの保持日数"
-  type        = number
-  default     = 14
+  default     = "t3.micro"
 }

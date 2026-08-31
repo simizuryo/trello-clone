@@ -1,8 +1,8 @@
 # VPC
 #
 # NATゲートウェイは作らずコストを抑える構成にしている。
-# - ECS Fargateタスクはパブリックサブネットに置き、パブリックIPを付与してECR/CloudWatch等へ通信する。
-#   外部からのインバウンドはセキュリティグループでALBからのみに制限する(security_groups.tf参照)。
+# - バックエンドのEC2インスタンスはパブリックサブネットに置き、パブリックIPを付与してECR/SSM等へ通信する。
+#   外部からのインバウンドはセキュリティグループで必要なポートのみに制限する(security_groups.tf参照)。
 # - RDSはプライベートサブネットに置く。DB自身が外向き通信を行う必要はないためNAT不要。
 
 resource "aws_vpc" "main" {
@@ -23,7 +23,7 @@ resource "aws_internet_gateway" "main" {
   }
 }
 
-# パブリックサブネット(ALB・ECSタスク用)
+# パブリックサブネット(バックエンドEC2用)
 resource "aws_subnet" "public" {
   count                   = length(var.availability_zones)
   vpc_id                  = aws_vpc.main.id
