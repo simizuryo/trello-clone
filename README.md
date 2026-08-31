@@ -107,6 +107,10 @@ docker compose down        # PostgreSQLコンテナを停止(データは保持)
 docker compose down -v     # データも含めて完全に削除する場合
 ```
 
+## AWSへのデプロイ
+
+AWS CLI + Terraformを使ってAWS上にデプロイする手順は [docs/deployment/](docs/deployment/) にまとめている。AWS/Terraform/IaCが初めての場合の解説から、認証設定・実際のデプロイ手順・コストの目安までを含む。
+
 ## 開発ルール
 
 Issue駆動開発・ブランチ命名規則・PRフローなど、このリポジトリで変更を行う際のルールは [CLAUDE.md](CLAUDE.md) にまとめている。
@@ -126,3 +130,10 @@ Issue駆動開発・ブランチ命名規則・PRフローなど、このリポ�
   - [09-open-questions.md](docs/requirements/09-open-questions.md) 要確認ポイント
 - [docs/prototype/index.html](docs/prototype/index.html) — 画面プロトタイプ(静的HTML、ドラッグ&ドロップ含む)
 - [backend/README.md](backend/README.md) — バックエンドのセットアップ手順・API仕様
+- [docs/deployment/](docs/deployment/) — AWS(Terraform)へのデプロイ手順・IaC解説
+  - [00-concepts.md](docs/deployment/00-concepts.md) AWS/IaC/Terraformの基本概念
+  - [01-account-and-cli-setup.md](docs/deployment/01-account-and-cli-setup.md) AWSアカウント・IAM・CLIの設定
+  - [02-terraform-setup.md](docs/deployment/02-terraform-setup.md) Terraformのセットアップ
+  - [03-architecture.md](docs/deployment/03-architecture.md) AWS構成の全体像
+  - [04-deploy-runbook.md](docs/deployment/04-deploy-runbook.md) デプロイ手順
+  - [05-teardown-and-cost.md](docs/deployment/05-teardown-and-cost.md) コストの見積もりと後片付け
