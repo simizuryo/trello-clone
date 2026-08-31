@@ -4,9 +4,9 @@
 
 ## 全体の流れ
 
-1. `terraform apply` でAWSインフラを作成(この時点ではECSにまだアプリのイメージがなく、コンテナは起動失敗を繰り返す。想定通り)
+1. `terraform apply` でAWSインフラを作成(この時点ではEC2にまだアプリのイメージがなく、初回起動スクリプトはコンテナ起動に失敗する。想定通り)
 2. バックエンドのDockerイメージをビルドしてECRへpush
-3. ECSサービスに新しいイメージを反映
+3. SSM経由でEC2上のデプロイスクリプトを実行し、新しいイメージを反映
 4. フロントエンドをビルドしてS3へアップロード、CloudFrontのキャッシュを無効化
 5. 動作確認
 
@@ -35,13 +35,12 @@ terraform output
 以降のコマンドで使うため、主要な値を変数に入れておく。
 
 ```powershell
-$ECR_REPO   = terraform output -raw ecr_repository_url
-$ALB_URL    = terraform output -raw alb_dns_name
-$CF_URL     = terraform output -raw cloudfront_domain_name
-$BUCKET     = terraform output -raw frontend_bucket_name
-$CF_DIST_ID = terraform output -raw cloudfront_distribution_id
-$ECS_CLUSTER = terraform output -raw ecs_cluster_name
-$ECS_SERVICE = terraform output -raw ecs_service_name
+$ECR_REPO    = terraform output -raw ecr_repository_url
+$BACKEND_URL = terraform output -raw backend_url
+$CF_URL      = terraform output -raw cloudfront_domain_name
+$BUCKET      = terraform output -raw frontend_bucket_name
+$CF_DIST_ID  = terraform output -raw cloudfront_distribution_id
+$INSTANCE_ID = terraform output -raw ec2_instance_id
 ```
 
 ## 2. バックエンドイメージをビルドしてECRへpush
@@ -61,33 +60,51 @@ docker build -t "${ECR_REPO}:latest" ./backend
 docker push "${ECR_REPO}:latest"
 ```
 
-## 3. ECSサービスに反映する
+## 3. EC2に反映する(SSM経由でデプロイスクリプトを実行)
 
-初回applyの時点でECSサービスは`:latest`タグを見に行くよう設定済みなので、pushが終わればECSは自動的に再試行して起動する(数十秒〜数分待つ)。すぐに反映させたい場合は強制的に新しいデプロイを走らせる。
+EC2インスタンスには起動時に自動生成されたデプロイスクリプト `/usr/local/bin/deploy-backend.sh` が置かれている(中身は`terraform/templates/deploy-backend.sh.tpl`)。SSHキーなしで、AWS CLIから直接このスクリプトを実行させる。
 
 ```powershell
-aws ecs update-service --cluster $ECS_CLUSTER --service $ECS_SERVICE --force-new-deployment --region $AWS_REGION
+aws ssm send-command `
+  --instance-ids $INSTANCE_ID `
+  --document-name "AWS-RunShellScript" `
+  --parameters commands="/usr/local/bin/deploy-backend.sh" `
+  --region $AWS_REGION
 ```
 
-起動状況の確認:
+実行結果(コマンドID)が表示される。進捗・成否は以下で確認できる。
 
 ```powershell
-aws ecs describe-services --cluster $ECS_CLUSTER --services $ECS_SERVICE --region $AWS_REGION --query "services[0].deployments"
+$COMMAND_ID = "<↑で表示されたCommand Id>"
+aws ssm get-command-invocation --command-id $COMMAND_ID --instance-id $INSTANCE_ID --region $AWS_REGION
 ```
 
-ヘルスチェック確認(200が返ればOK。ALB作成直後はDNS反映やターゲット登録に数分かかることがある):
+`Status`が`Success`になれば完了。数十秒〜1分程度かかる。
+
+ヘルスチェック確認(200が返ればOK):
 
 ```powershell
-curl "$ALB_URL/actuator/health"
+curl "$BACKEND_URL/actuator/health"
+```
+
+うまくいかない場合は、SSM Session Managerで直接ログを確認できる。
+
+```powershell
+aws ssm start-session --target $INSTANCE_ID
+```
+
+```bash
+sudo cat /var/log/deploy-backend.log
+sudo docker logs backend
 ```
 
 ## 4. フロントエンドをビルドしてデプロイする
 
-`VITE_API_BASE_URL` にALBのURLを指定してビルドする。
+`VITE_API_BASE_URL` にEC2のElastic IP(`backend_url`)を指定してビルドする。
 
 ```powershell
 cd app
-$env:VITE_API_BASE_URL = $ALB_URL
+$env:VITE_API_BASE_URL = $BACKEND_URL
 npm install
 npm run build
 cd ..
@@ -117,6 +134,8 @@ Start-Process $CF_URL
 ## 2回目以降の再デプロイ
 
 アプリのコードを変更した場合は、変更した側だけ手順2〜4を再実行すればよい(インフラ自体に変更がなければ`terraform apply`は不要)。Terraformのコード自体(`terraform/`配下)を変更した場合は、`terraform plan`で差分を確認してから`terraform apply`する。
+
+> EC2の`user_data`(起動スクリプト)はインスタンスの**初回起動時にしか自動実行されない**仕様のため、スクリプトの中身自体を変更した場合(`deploy-backend.sh.tpl`を編集した場合)は、`terraform apply`後にSSM経由で手動実行するか、インスタンスを作り直す必要がある。
 
 ---
 

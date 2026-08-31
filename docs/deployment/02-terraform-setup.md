@@ -40,8 +40,9 @@ terraform/
 ├── security_groups.tf        # セキュリティグループ
 ├── ecr.tf                    # ECR(コンテナイメージ置き場)
 ├── rds.tf                    # RDS(PostgreSQL)・DBパスワード管理
-├── alb.tf                    # ALB(ロードバランサー)
-├── ecs.tf                    # ECS(コンテナ実行基盤)
+├── ec2.tf                     # バックエンド用EC2インスタンス・Elastic IP
+├── templates/
+│   └── deploy-backend.sh.tpl  # EC2起動/再デプロイ時のスクリプト
 ├── s3_cloudfront.tf           # フロントエンド配信(S3 + CloudFront)
 ├── outputs.tf                 # apply後に表示される値
 ├── terraform.tfvars.example   # 変数の設定例(コミット対象)

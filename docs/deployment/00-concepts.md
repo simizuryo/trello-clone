@@ -11,13 +11,13 @@ Amazon Web Services。AWSは「サーバー」「データベース」「ネッ�
 | サービス | 役割 |
 |---|---|
 | VPC | AWS上に作る自分専用の仮想ネットワーク |
-| ECS(Fargate) | Dockerコンテナ(バックエンド)をサーバー管理なしで動かす場所 |
-| ALB(Application Load Balancer) | インターネットからのアクセスをECSのコンテナへ振り分ける入り口 |
+| EC2 | 仮想サーバー(コンピュータ)を借りるサービス。ここではバックエンドのDockerコンテナを直接動かす |
 | ECR | 自分たちのDockerイメージを保管する倉庫(DockerHubのAWS版) |
 | RDS | マネージドなPostgreSQLデータベース |
 | S3 | ファイル保管サービス。ここではビルド済みのフロントエンド(HTML/CSS/JS)を置く |
 | CloudFront | S3の中身を世界中に高速配信するCDN。フロントエンドの公開入り口になる |
 | Secrets Manager | パスワードなどの秘密情報を安全に保管する場所 |
+| Systems Manager(SSM) | SSHキーなしでEC2にシェル接続・コマンド実行できるサービス |
 | IAM | 「誰が」「何を」できるかを管理する権限の仕組み |
 
 ## なぜマネジメントコンソール(画面操作)を使わないのか
@@ -64,7 +64,7 @@ HashiCorp社が開発しているOSSのIaCツール。特徴:
 - **provider(プロバイダ)**: どのクラウド/サービスを操作するかの設定。ここでは`hashicorp/aws`
 - **resource(リソース)**: 実際に作成する個々の部品。例: `aws_vpc`, `aws_db_instance`
 - **variable(変数)**: リソース定義の中で使う可変値。環境ごとに変えたい値をここにまとめる
-- **output(出力)**: `apply`後に画面に表示したい値。例: ALBのURL
+- **output(出力)**: `apply`後に画面に表示したい値。例: バックエンドのURL
 - **state(ステート)**: 「今Terraformが管理しているリソースの実際の状態」を記録したファイル(`terraform.tfstate`)。このプロジェクトではローカルに保存する(詳細は[02-terraform-setup.md](02-terraform-setup.md))
 
 ## このプロジェクトでの位置づけ

@@ -12,8 +12,7 @@ flowchart TB
 
         subgraph VPC["VPC"]
             subgraph Public["パブリックサブネット x2"]
-                ALB["ALB\nApplication Load Balancer"]
-                ECS["ECSタスク (Fargate)\nSpring Bootコンテナ"]
+                EC2["EC2 (t3.micro)\nSpring Bootコンテナ\n+ Elastic IP"]
             end
             subgraph Private["プライベートサブネット x2"]
                 RDS["RDS\nPostgreSQL"]
@@ -22,15 +21,16 @@ flowchart TB
 
         ECR["ECR\nバックエンドDockerイメージ"]
         SM["Secrets Manager\nDBパスワード"]
+        SSMSVC["SSM\n(Session Manager)"]
     end
 
     User -- "HTTPS" --> CF
     CF -- "静的ファイル取得(OAC経由)" --> S3
-    User -- "HTTP(API呼び出し)" --> ALB
-    ALB -- "HTTP :8080" --> ECS
-    ECS -- "JDBC :5432" --> RDS
-    ECS -. "起動時にイメージpull" .-> ECR
-    ECS -. "起動時にパスワード取得" .-> SM
+    User -- "HTTP :80(API呼び出し)" --> EC2
+    EC2 -- "JDBC :5432" --> RDS
+    EC2 -. "起動/再デプロイ時にイメージpull" .-> ECR
+    EC2 -. "起動/再デプロイ時にパスワード取得" .-> SM
+    SSMSVC -. "鍵不要のシェル接続・コマンド実行" .-> EC2
 ```
 
 ## 各リソースの役割
@@ -38,22 +38,25 @@ flowchart TB
 ### ネットワーク(`network.tf`, `security_groups.tf`)
 
 - **VPC**: このプロジェクト専用の仮想ネットワーク(`10.0.0.0/16`)
-- **パブリックサブネット x2**: 異なるアベイラビリティゾーン(データセンター)に1つずつ配置。ALBとECSタスクを置く。インターネットゲートウェイ経由で外部と直接通信できる
+- **パブリックサブネット x2**: 異なるアベイラビリティゾーン(データセンター)に1つずつ配置。バックエンドを動かすEC2インスタンスを置く。インターネットゲートウェイ経由で外部と直接通信できる
 - **プライベートサブネット x2**: RDSを置く。外部からの直接アクセス経路を持たない
-- **セキュリティグループ**: 通信を許可する範囲を絞るファイアウォール。「ALBは誰からでも80番ポートを受ける」「ECSはALBからだけ8080番ポートを受ける」「RDSはECSからだけ5432番ポートを受ける」という3段構えで、必要最小限の通信だけを許可している
+- **セキュリティグループ**: 通信を許可する範囲を絞るファイアウォール。「EC2は誰からでも80番ポートを受ける」「RDSはEC2からだけ5432番ポートを受ける」という2段構えで、必要最小限の通信だけを許可している
 
-このプロジェクトはコスト削減のため **NATゲートウェイを作らない**。通常はプライベートサブネットのリソースが外部と通信するためにNATゲートウェイ(月額$30程度〜)が必要だが、RDSは自発的に外部と通信しないため不要。ECSタスクは代わりにパブリックサブネットに置き、セキュリティグループで受信を絞ることで安全性を確保している(詳細は[00-concepts.md](00-concepts.md)、判断の背景は`network.tf`のコメントを参照)。
+このプロジェクトはコスト削減のため **NATゲートウェイを作らない**。通常はプライベートサブネットのリソースが外部と通信するためにNATゲートウェイ(月額$30程度〜)が必要だが、RDSは自発的に外部と通信しないため不要。EC2インスタンスは代わりにパブリックサブネットに置き、セキュリティグループで受信を絞ることで安全性を確保している(詳細は[00-concepts.md](00-concepts.md)、判断の背景は`network.tf`のコメントを参照)。
 
-### バックエンド実行基盤(`ecr.tf`, `ecs.tf`, `alb.tf`)
+### バックエンド実行基盤(`ecr.tf`, `ec2.tf`)
 
 - **ECR**: `backend/Dockerfile` からビルドしたコンテナイメージを保管するプライベートなDockerレジストリ
-- **ECS(Fargate)**: コンテナを動かす実行基盤。「Fargate」はサーバー(EC2インスタンス)を自分で管理せず、コンテナ単位でCPU/メモリを指定して動かせるモード
-- **ALB**: インターネットからのHTTPリクエストを受け、ECSタスクへ振り分けるロードバランサー。`/actuator/health`をヘルスチェックし、正常なタスクにのみ通信を流す
+- **EC2(t3.micro)**: バックエンドコンテナを直接動かす1台のインスタンス。ALBやECSのようなマネージドな実行基盤は使わず、起動時にEC2自身がECRからイメージをpullしてDockerコンテナとして起動する(`terraform/templates/deploy-backend.sh.tpl`)。t3.microはAWSの無料利用枠の対象になりうるインスタンスタイプ
+- **Elastic IP**: EC2に紐づく固定のパブリックIPアドレス。インスタンスを再起動してもIPアドレスが変わらない
+- **SSM(Systems Manager) Session Manager**: SSHキーを使わずにEC2へシェル接続・コマンド実行できる仕組み。ポート22を一切開けていないため、鍵の管理や紛失のリスクがない
+
+> 元々はALB + ECS Fargateの構成も検討したが、**どちらも無料利用枠の対象外**(常時起動で合計月$25〜30程度)なため、無料利用枠の対象になりうるEC2単一インスタンス構成に変更した。詳細は[05-teardown-and-cost.md](05-teardown-and-cost.md)。
 
 ### データベース(`rds.tf`)
 
 - **RDS(PostgreSQL)**: マネージドなPostgreSQL。バックアップ・パッチ適用などをAWSが代行する
-- **Secrets Manager**: Terraformが自動生成したDBパスワードを保管する。ECSタスク定義はこのシークレットのARNを参照し、起動時に安全にパスワードを取得する(コードやtfvarsに平文で書かない)
+- **Secrets Manager**: Terraformが自動生成したDBパスワードを保管する。EC2はこのシークレットのARNを起動スクリプトから参照し、起動時に安全にパスワードを取得する(コードやtfvarsに平文で書かない)
 
 ### フロントエンド配信(`s3_cloudfront.tf`)
 
@@ -63,11 +66,26 @@ flowchart TB
 ## リクエストの流れ
 
 1. 利用者がCloudFrontのURL(`https://xxxx.cloudfront.net`)にアクセス → S3上のReactアプリが返る
-2. フロントエンドのJavaScriptが、ビルド時に埋め込まれた `VITE_API_BASE_URL`(ALBのURL)へAPIリクエストを送る
-3. ALBがリクエストをECS上のSpring Bootコンテナへ転送
+2. フロントエンドのJavaScriptが、ビルド時に埋め込まれた `VITE_API_BASE_URL`(EC2のElastic IP)へAPIリクエストを送る
+3. EC2上のSpring Bootコンテナがリクエストを受ける(ポート80 → コンテナ内部ポート8080へマッピング)
 4. Spring BootがRDSのPostgreSQLへ問い合わせて結果を返す
 
-フロントエンド(CloudFrontのオリジン)とバックエンド(ALBのオリジン)は別ドメインになるため、ブラウザからのAPI呼び出しはクロスオリジンリクエストになる。これを許可するため、ECSタスクの環境変数 `APP_CORS_ALLOWED_ORIGINS` にCloudFrontのURLを設定している(`backend/src/main/resources/application.yml` 参照)。
+フロントエンド(CloudFrontのオリジン)とバックエンド(EC2のオリジン)は別ドメインになるため、ブラウザからのAPI呼び出しはクロスオリジンリクエストになる。これを許可するため、EC2起動スクリプトが渡す環境変数 `APP_CORS_ALLOWED_ORIGINS` にCloudFrontのURLを設定している(`backend/src/main/resources/application.yml` 参照)。
+
+## トラブルシューティング(SSM接続)
+
+コンテナのログを見たい、起動スクリプトの実行結果を確認したいといった場合は、SSHキーなしでEC2に接続できる。
+
+```powershell
+aws ssm start-session --target <ec2_instance_idの値>
+```
+
+接続後、以下でログを確認できる。
+
+```bash
+sudo cat /var/log/deploy-backend.log   # 起動/再デプロイスクリプトのログ
+sudo docker logs backend               # アプリケーションのログ
+```
 
 ---
 
