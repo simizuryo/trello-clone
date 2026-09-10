@@ -3,13 +3,17 @@
 # 無料利用枠の対象になりうるEC2(t3.micro)上でDockerコンテナを直接起動する方式にしている。
 # 詳細は docs/deployment/05-teardown-and-cost.md を参照。
 
+# 標準版のAmazon Linux 2023を指定する。"al2023-ami-*-x86_64"だと
+# SSM Agentが同梱されていない"al2023-ami-minimal-*-x86_64"(Minimal版)にもマッチしてしまい、
+# most_recent=trueでMinimal版が選ばれるとSSM Session Manager経由で一切接続できなくなるため、
+# 名前の直後に必ずバージョン番号(数字)が来るパターンに絞ってMinimal版を除外する。
 data "aws_ami" "al2023" {
   most_recent = true
   owners      = ["amazon"]
 
   filter {
     name   = "name"
-    values = ["al2023-ami-*-x86_64"]
+    values = ["al2023-ami-2*-x86_64"]
   }
 
   filter {
