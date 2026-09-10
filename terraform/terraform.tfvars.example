@@ -7,6 +7,6 @@ project_name = "trello-clone"
 aws_region   = "ap-northeast-1"
 
 # 初回applyでは container_image_tag はダミーのままで良い(ECRにイメージが無くてもリソース作成はできる)。
-# 実際にECSタスクを起動させるには、backend/Dockerfileをビルドしてこのタグでpushしてから
-# 再度applyするか `aws ecs update-service` で反映させる。
+# 実際にEC2上でコンテナを起動させるには、backend/Dockerfileをビルドしてこのタグでpushしてから、
+# SSM経由でEC2上のデプロイスクリプト(deploy-backend.sh)を実行して反映させる。
 container_image_tag = "latest"

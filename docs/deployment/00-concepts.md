@@ -6,22 +6,23 @@ AWS/Terraformが初めての人向けに、このデプロイ作業で出てく�
 
 Amazon Web Services。AWSは「サーバー」「データベース」「ネットワーク」などをインターネット経由で必要な分だけ借りられるサービス群(クラウド)。自分でサーバー機材を買う代わりに、AWSが持っている巨大なデータセンターの一部を時間単位・使用量単位で借りる。
 
-このプロジェクトは段階的に構築を進める(詳細は[03-architecture.md](03-architecture.md))。現在のPhase 1(EC2のみ)で使うAWSサービス:
+このプロジェクトは段階的に構築を進める(詳細は[03-architecture.md](03-architecture.md))。現在のPhase 2(EC2 + RDS)で使うAWSサービス:
 
 | サービス | 役割 |
 |---|---|
 | VPC | AWS上に作る自分専用の仮想ネットワーク |
 | EC2 | 仮想サーバー(コンピュータ)を借りるサービス。ここではフロントエンド画面+バックエンドAPIを同梱したDockerコンテナを直接動かす |
 | ECR | 自分たちのDockerイメージを保管する倉庫(DockerHubのAWS版) |
-| Systems Manager(SSM) | SSHキーなしでEC2にシェル接続・コマンド実行できるサービス |
+| RDS | マネージドなPostgreSQLデータベース。EC2からのみ接続できるようプライベートサブネットに置く |
+| Systems Manager(SSM) | SSHキーなしでEC2にシェル接続・コマンド実行できるサービス。加えて、DBパスワードの保管(Parameter Store)にも使う |
 | IAM | 「誰が」「何を」できるかを管理する権限の仕組み |
+
+> DBパスワードの保管には、固定費がかかるSecrets Manager(約$0.4/月〜)ではなく、無料のSSM Parameter Store(SecureString)を使っている。
 
 今後のフェーズで追加予定のサービス:
 
 | サービス | 役割 | 追加予定のフェーズ |
 |---|---|---|
-| RDS | マネージドなPostgreSQLデータベース | Phase 2 |
-| Secrets Manager | パスワードなどの秘密情報を安全に保管する場所 | Phase 2(RDSのパスワード管理用) |
 | S3 / CloudFront | フロントエンドをEC2から分離して配信する場合の構成(検討中) | Phase 3(検討中) |
 
 ## なぜマネジメントコンソール(画面操作)を使わないのか

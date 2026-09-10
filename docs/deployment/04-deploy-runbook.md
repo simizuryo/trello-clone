@@ -1,17 +1,15 @@
-# 04. デプロイ手順(Runbook・Phase 1: EC2のみ)
+# 04. デプロイ手順(Runbook)
 
 [01](01-account-and-cli-setup.md)・[02](02-terraform-setup.md)が完了している前提。すべてPowerShellでのコマンド例。
 
-このドキュメントはPhase 1(EC2 1台にフロントエンド+バックエンドを同梱してデプロイする段階)の手順。RDSやS3/CloudFrontはまだ無い(詳細は[03-architecture.md](03-architecture.md))。
+このドキュメントはPhase 2時点(EC2 + RDS)の手順。S3/CloudFrontはまだ無い(詳細は[03-architecture.md](03-architecture.md))。
 
 ## 全体の流れ
 
-1. `terraform apply` でAWSインフラ(VPC・EC2・ECR)を作成(この時点ではECRにまだイメージが無く、初回起動時のコンテナ起動は失敗する。想定通り)
+1. `terraform apply` でAWSインフラ(VPC・EC2・RDS・ECR)を作成(この時点ではECRにまだイメージが無く、初回起動時のコンテナ起動は失敗する。想定通り)
 2. フロントエンド+バックエンドを同梱したDockerイメージをビルドしてECRへpush
-3. SSM経由でEC2上のデプロイスクリプトを実行し、新しいイメージを反映
+3. SSM経由でEC2上のデプロイスクリプトを実行し、新しいイメージ・RDS接続情報を反映
 4. 動作確認
-
-> **Phase 1ではRDSがまだ無いため、コンテナ内のアプリがDB接続に失敗して起動できない可能性がある**。その場合、`http://<backend_url>`にアクセスしても画面が表示されない・`/actuator/health`が200を返さないことがある。これはPhase 1時点では想定内で、Phase 2でRDSを追加すると解消する。Phase 1での確認対象は「EC2が起動しSSMで接続できること」「Dockerが動きECRからイメージをpullできること」までで十分。
 
 ## 1. インフラを作成する
 
@@ -28,6 +26,8 @@ terraform apply
 ```
 
 確認プロンプトで `yes` を入力する。完了すると `outputs.tf` で定義した値が表示される。以後 `terraform output` でいつでも再確認できる。
+
+> **RDSの作成には10〜15分程度かかることがある**。途中で止まっているように見えても異常ではない。
 
 ```powershell
 terraform output
@@ -61,7 +61,7 @@ docker push "${ECR_REPO}:latest"
 
 ## 3. EC2に反映する(SSM経由でデプロイスクリプトを実行)
 
-EC2インスタンスには起動時に自動生成されたデプロイスクリプト `/usr/local/bin/deploy-backend.sh` が置かれている(中身は`terraform/templates/deploy-backend.sh.tpl`)。SSHキーなしで、AWS CLIから直接このスクリプトを実行させる。
+EC2インスタンスには起動時に自動生成されたデプロイスクリプト `/usr/local/bin/deploy-backend.sh` が置かれている(中身は`terraform/templates/deploy-backend.sh.tpl`)。SSHキーなしで、AWS CLIから直接このスクリプトを実行させる。このスクリプトはSSM Parameter StoreからDBパスワードを取得し、RDSの接続情報とあわせてコンテナに渡す。
 
 ```powershell
 aws ssm send-command `
@@ -78,33 +78,37 @@ $COMMAND_ID = "<↑で表示されたCommand Id>"
 aws ssm get-command-invocation --command-id $COMMAND_ID --instance-id $INSTANCE_ID --region $AWS_REGION
 ```
 
-`Status`が`Success`になれば、デプロイスクリプト自体(イメージpull・コンテナ起動コマンドの実行)は完了。ただし前述の通り、Phase 1時点ではコンテナ内のアプリがDB未接続で落ちている可能性がある。
+`Status`が`Success`になれば完了。数十秒〜1分程度かかる。
 
-うまくいかない場合や、コンテナの状態を見たい場合は、SSM Session Managerで直接ログを確認できる。
+ヘルスチェック確認(200が返ればOK):
+
+```powershell
+curl "$BACKEND_URL/actuator/health"
+```
+
+うまくいかない場合は、SSM Session Managerで直接ログを確認できる。
 
 ```powershell
 aws ssm start-session --target $INSTANCE_ID
 ```
 
 ```bash
-sudo cat /var/log/deploy-backend.log   # デプロイスクリプト自体のログ(Dockerが起動しイメージがpullできたか)
+sudo cat /var/log/deploy-backend.log   # デプロイスクリプト自体のログ(イメージpull・DBパスワード取得ができたか)
 sudo docker ps -a                      # backendコンテナが起動中か、再起動を繰り返していないか
 sudo docker logs backend               # アプリケーションのログ(DB接続エラー等はここに出る)
 ```
 
-## 4. 動作確認(Phase 1の範囲)
+## 4. 動作確認
 
 ```powershell
+# ヘルスチェック(DB接続を含めUPであることを確認)
 curl "$BACKEND_URL/actuator/health"
+
+# ブラウザで画面を開く
+Start-Process $BACKEND_URL
 ```
 
-RDSが無いため、Phase 1時点では200が返らないことがある(想定内)。以下が確認できていればPhase 1としては十分。
-
-- `terraform output` で `backend_url` / `ec2_instance_id` / `ecr_repository_url` が表示される
-- `aws ssm start-session --target $INSTANCE_ID` でSSHキー無しにEC2へ接続できる
-- `sudo docker ps -a` で `backend` コンテナが(起動に失敗していても)作成されている、かつ `sudo cat /var/log/deploy-backend.log` でECRからのpullまで成功している
-
-フロントエンド画面の表示・APIの疎通確認は、Phase 2でRDSを追加した後に行う。
+「検索(サーバー)」画面が表示され、リスト・カードの検索や新規作成がバックエンドAPI経由(RDS読み書き)で行えることを確認する。
 
 ## 2回目以降の再デプロイ
 

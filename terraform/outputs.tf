@@ -12,3 +12,8 @@ output "ecr_repository_url" {
   description = "バックエンドイメージのpush先ECRリポジトリURL"
   value       = aws_ecr_repository.backend.repository_url
 }
+
+output "rds_endpoint" {
+  description = "RDSのエンドポイント(ホスト:ポート)。EC2からのみ接続可能"
+  value       = aws_db_instance.main.endpoint
+}

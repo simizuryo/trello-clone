@@ -11,6 +11,11 @@ REGION="${aws_region}"
 ECR_REPOSITORY_URL="${ecr_repository_url}"
 IMAGE_TAG="${container_image_tag}"
 CONTAINER_PORT="${backend_container_port}"
+DB_HOST="${db_host}"
+DB_PORT="${db_port}"
+DB_NAME="${db_name}"
+DB_USERNAME="${db_username}"
+DB_PASSWORD_PARAM_NAME="${db_password_param_name}"
 
 # 初回起動時のみ: Docker/AWS CLIをインストールする(再デプロイ時はすでに入っているためスキップされる)
 if ! command -v docker >/dev/null 2>&1; then
@@ -24,15 +29,23 @@ aws ecr get-login-password --region "$${REGION}" \
 
 docker pull "$${ECR_REPOSITORY_URL}:$${IMAGE_TAG}"
 
+# SSM Parameter StoreからDBパスワードを取得する(EC2のIAMロールに読み取り権限を付与済み)
+DB_PASSWORD=$(aws ssm get-parameter \
+  --region "$${REGION}" \
+  --name "$${DB_PASSWORD_PARAM_NAME}" \
+  --with-decryption \
+  --query Parameter.Value --output text)
+
 # 既存コンテナがあれば置き換える
 docker rm -f backend >/dev/null 2>&1 || true
 
-# Phase 1ではRDSがまだ無いため、DB接続情報は渡さない(application.ymlのデフォルト値が使われ、
-# DB接続に失敗してアプリの起動が失敗する可能性がある。Phase 2でRDSを追加した時点で解消する想定)。
 docker run -d \
   --name backend \
   --restart unless-stopped \
   -p "80:$${CONTAINER_PORT}" \
+  -e "SPRING_DATASOURCE_URL=jdbc:postgresql://$${DB_HOST}:$${DB_PORT}/$${DB_NAME}" \
+  -e "SPRING_DATASOURCE_USERNAME=$${DB_USERNAME}" \
+  -e "SPRING_DATASOURCE_PASSWORD=$${DB_PASSWORD}" \
   "$${ECR_REPOSITORY_URL}:$${IMAGE_TAG}"
 
 echo "=== deploy-backend.sh finished at $(date -u +%FT%TZ) ==="

@@ -16,14 +16,15 @@ AWS上にこのアプリをデプロイするためのTerraformコード。初�
 | `versions.tf` | Terraform / プロバイダのバージョン制約 |
 | `providers.tf` | AWSプロバイダ設定 |
 | `variables.tf` | 変数定義 |
-| `network.tf` | VPC・パブリックサブネット・ルートテーブル |
-| `security_groups.tf` | アプリ(EC2)用セキュリティグループ |
+| `network.tf` | VPC・パブリック/プライベートサブネット・ルートテーブル |
+| `security_groups.tf` | アプリ(EC2)/RDS用セキュリティグループ |
 | `ecr.tf` | バックエンドイメージ用ECRリポジトリ |
+| `rds.tf` | RDS(PostgreSQL)・SSM Parameter Store(DBパスワード) |
 | `ec2.tf` | バックエンド(フロントエンド同梱)を動かすEC2インスタンス・Elastic IP・IAMロール |
 | `templates/deploy-backend.sh.tpl` | EC2起動時/再デプロイ時に実行するデプロイスクリプト |
-| `outputs.tf` | apply後に表示される値(アプリのURL等) |
+| `outputs.tf` | apply後に表示される値(アプリのURL・RDSエンドポイント等) |
 
-> 現在はPhase 1(EC2のみ)。RDS(データベース)やS3/CloudFront(フロントエンド分離配信)はまだ無く、今後のフェーズで追加予定。詳細は [docs/deployment/03-architecture.md](../docs/deployment/03-architecture.md) を参照。
+> 現在はPhase 2(EC2 + RDS)。S3/CloudFront(フロントエンド分離配信)はまだ無く、採用するかも含めて検討中。詳細は [docs/deployment/03-architecture.md](../docs/deployment/03-architecture.md) を参照。
 
 ## 使い方
 
