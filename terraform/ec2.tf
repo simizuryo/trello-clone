@@ -1,6 +1,7 @@
-# EC2単一インスタンスでバックエンドコンテナを直接動かす構成。
+# Phase 1: EC2単一インスタンスでバックエンド(+同梱したフロントエンド静的ファイル)コンテナを直接動かす構成。
 # ALB + ECS Fargateは無料利用枠の対象外(常時起動で月$25〜30程度)のため、
 # 無料利用枠の対象になりうるEC2(t3.micro)上でDockerコンテナを直接起動する方式にしている。
+# RDSはまだ無いため、このコンテナはDB接続に失敗して起動しない可能性がある(Phase 2でRDSを追加後に解消する想定)。
 # 詳細は docs/deployment/05-teardown-and-cost.md を参照。
 
 data "aws_ami" "al2023" {
@@ -18,8 +19,7 @@ data "aws_ami" "al2023" {
   }
 }
 
-# EC2用IAMロール: ECRからのイメージpull、Secrets ManagerからDBパスワード取得、
-# SSM Session Manager経由の接続(SSHキー不要)に必要な権限を付与する
+# EC2用IAMロール: ECRからのイメージpull、SSM Session Manager経由の接続(SSHキー不要)に必要な権限を付与する
 resource "aws_iam_role" "ec2" {
   name = "${var.project_name}-ec2-role"
 
@@ -41,20 +41,6 @@ resource "aws_iam_role_policy_attachment" "ec2_ssm" {
 resource "aws_iam_role_policy_attachment" "ec2_ecr" {
   role       = aws_iam_role.ec2.name
   policy_arn = "arn:aws:iam::aws:policy/AmazonEC2ContainerRegistryReadOnly"
-}
-
-resource "aws_iam_role_policy" "ec2_secrets" {
-  name = "${var.project_name}-ec2-secrets"
-  role = aws_iam_role.ec2.id
-
-  policy = jsonencode({
-    Version = "2012-10-17"
-    Statement = [{
-      Effect   = "Allow"
-      Action   = ["secretsmanager:GetSecretValue"]
-      Resource = [aws_secretsmanager_secret.db_password.arn]
-    }]
-  })
 }
 
 resource "aws_iam_instance_profile" "ec2" {
@@ -79,12 +65,6 @@ resource "aws_instance" "backend" {
     ecr_repository_url     = aws_ecr_repository.backend.repository_url
     container_image_tag    = var.container_image_tag
     backend_container_port = var.backend_container_port
-    db_host                = aws_db_instance.main.address
-    db_port                = aws_db_instance.main.port
-    db_name                = var.db_name
-    db_username            = var.db_username
-    db_password_secret_arn = aws_secretsmanager_secret.db_password.arn
-    cors_allowed_origins   = "https://${aws_cloudfront_distribution.frontend.domain_name}"
   })
 
   tags = {

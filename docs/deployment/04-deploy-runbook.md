@@ -1,14 +1,17 @@
-# 04. デプロイ手順(Runbook)
+# 04. デプロイ手順(Runbook・Phase 1: EC2のみ)
 
 [01](01-account-and-cli-setup.md)・[02](02-terraform-setup.md)が完了している前提。すべてPowerShellでのコマンド例。
 
+このドキュメントはPhase 1(EC2 1台にフロントエンド+バックエンドを同梱してデプロイする段階)の手順。RDSやS3/CloudFrontはまだ無い(詳細は[03-architecture.md](03-architecture.md))。
+
 ## 全体の流れ
 
-1. `terraform apply` でAWSインフラを作成(この時点ではEC2にまだアプリのイメージがなく、初回起動スクリプトはコンテナ起動に失敗する。想定通り)
-2. バックエンドのDockerイメージをビルドしてECRへpush
+1. `terraform apply` でAWSインフラ(VPC・EC2・ECR)を作成(この時点ではECRにまだイメージが無く、初回起動時のコンテナ起動は失敗する。想定通り)
+2. フロントエンド+バックエンドを同梱したDockerイメージをビルドしてECRへpush
 3. SSM経由でEC2上のデプロイスクリプトを実行し、新しいイメージを反映
-4. フロントエンドをビルドしてS3へアップロード、CloudFrontのキャッシュを無効化
-5. 動作確認
+4. 動作確認
+
+> **Phase 1ではRDSがまだ無いため、コンテナ内のアプリがDB接続に失敗して起動できない可能性がある**。その場合、`http://<backend_url>`にアクセスしても画面が表示されない・`/actuator/health`が200を返さないことがある。これはPhase 1時点では想定内で、Phase 2でRDSを追加すると解消する。Phase 1での確認対象は「EC2が起動しSSMで接続できること」「Dockerが動きECRからイメージをpullできること」までで十分。
 
 ## 1. インフラを作成する
 
@@ -26,8 +29,6 @@ terraform apply
 
 確認プロンプトで `yes` を入力する。完了すると `outputs.tf` で定義した値が表示される。以後 `terraform output` でいつでも再確認できる。
 
-> **初回applyは10〜20分程度かかることがある**。特にCloudFrontディストリビューションは世界中のエッジロケーションへ設定を配信し終えるまで時間がかかる。途中で止まっているように見えても異常ではない。
-
 ```powershell
 terraform output
 ```
@@ -37,15 +38,12 @@ terraform output
 ```powershell
 $ECR_REPO    = terraform output -raw ecr_repository_url
 $BACKEND_URL = terraform output -raw backend_url
-$CF_URL      = terraform output -raw cloudfront_domain_name
-$BUCKET      = terraform output -raw frontend_bucket_name
-$CF_DIST_ID  = terraform output -raw cloudfront_distribution_id
 $INSTANCE_ID = terraform output -raw ec2_instance_id
 ```
 
-## 2. バックエンドイメージをビルドしてECRへpush
+## 2. フロントエンド+バックエンドを同梱したイメージをビルドしてECRへpush
 
-リポジトリのルートに戻る。
+`backend/Dockerfile` はフロントエンド(`app/`)のビルドも含むマルチステージ構成になっているため、**リポジトリのルートをビルドコンテキストにして**ビルドする。
 
 ```powershell
 cd ..
@@ -55,8 +53,9 @@ $AWS_REGION = "ap-northeast-1"
 # ECRへのdockerログイン
 aws ecr get-login-password --region $AWS_REGION | docker login --username AWS --password-stdin "$AWS_ACCOUNT_ID.dkr.ecr.$AWS_REGION.amazonaws.com"
 
-# ビルド & push(タグはterraform.tfvarsのcontainer_image_tagと合わせる。デフォルトは latest)
-docker build -t "${ECR_REPO}:latest" ./backend
+# ビルド(リポジトリルートが起点、-fでDockerfileの場所を指定) & push
+# タグはterraform.tfvarsのcontainer_image_tagと合わせる(デフォルトは latest)
+docker build -f backend/Dockerfile -t "${ECR_REPO}:latest" .
 docker push "${ECR_REPO}:latest"
 ```
 
@@ -79,61 +78,37 @@ $COMMAND_ID = "<↑で表示されたCommand Id>"
 aws ssm get-command-invocation --command-id $COMMAND_ID --instance-id $INSTANCE_ID --region $AWS_REGION
 ```
 
-`Status`が`Success`になれば完了。数十秒〜1分程度かかる。
+`Status`が`Success`になれば、デプロイスクリプト自体(イメージpull・コンテナ起動コマンドの実行)は完了。ただし前述の通り、Phase 1時点ではコンテナ内のアプリがDB未接続で落ちている可能性がある。
 
-ヘルスチェック確認(200が返ればOK):
-
-```powershell
-curl "$BACKEND_URL/actuator/health"
-```
-
-うまくいかない場合は、SSM Session Managerで直接ログを確認できる。
+うまくいかない場合や、コンテナの状態を見たい場合は、SSM Session Managerで直接ログを確認できる。
 
 ```powershell
 aws ssm start-session --target $INSTANCE_ID
 ```
 
 ```bash
-sudo cat /var/log/deploy-backend.log
-sudo docker logs backend
+sudo cat /var/log/deploy-backend.log   # デプロイスクリプト自体のログ(Dockerが起動しイメージがpullできたか)
+sudo docker ps -a                      # backendコンテナが起動中か、再起動を繰り返していないか
+sudo docker logs backend               # アプリケーションのログ(DB接続エラー等はここに出る)
 ```
 
-## 4. フロントエンドをビルドしてデプロイする
-
-`VITE_API_BASE_URL` にEC2のElastic IP(`backend_url`)を指定してビルドする。
+## 4. 動作確認(Phase 1の範囲)
 
 ```powershell
-cd app
-$env:VITE_API_BASE_URL = $BACKEND_URL
-npm install
-npm run build
-cd ..
+curl "$BACKEND_URL/actuator/health"
 ```
 
-生成された `app/dist` の中身をS3へアップロードする。
+RDSが無いため、Phase 1時点では200が返らないことがある(想定内)。以下が確認できていればPhase 1としては十分。
 
-```powershell
-aws s3 sync app/dist "s3://$BUCKET" --delete
-```
+- `terraform output` で `backend_url` / `ec2_instance_id` / `ecr_repository_url` が表示される
+- `aws ssm start-session --target $INSTANCE_ID` でSSHキー無しにEC2へ接続できる
+- `sudo docker ps -a` で `backend` コンテナが(起動に失敗していても)作成されている、かつ `sudo cat /var/log/deploy-backend.log` でECRからのpullまで成功している
 
-CloudFrontはキャッシュを持っているため、更新を即座に反映するにはキャッシュ無効化(invalidation)を行う。
-
-```powershell
-aws cloudfront create-invalidation --distribution-id $CF_DIST_ID --paths "/*"
-```
-
-## 5. 動作確認
-
-```powershell
-# 立ち上げたURLをブラウザで開く
-Start-Process $CF_URL
-```
-
-「検索(サーバー)」画面が表示され、リスト・カードの検索や新規作成がバックエンドAPI経由で行えることを確認する。
+フロントエンド画面の表示・APIの疎通確認は、Phase 2でRDSを追加した後に行う。
 
 ## 2回目以降の再デプロイ
 
-アプリのコードを変更した場合は、変更した側だけ手順2〜4を再実行すればよい(インフラ自体に変更がなければ`terraform apply`は不要)。Terraformのコード自体(`terraform/`配下)を変更した場合は、`terraform plan`で差分を確認してから`terraform apply`する。
+アプリのコードを変更した場合は、手順2〜3を再実行すればよい(インフラ自体に変更がなければ`terraform apply`は不要)。Terraformのコード自体(`terraform/`配下)を変更した場合は、`terraform plan`で差分を確認してから`terraform apply`する。
 
 > EC2の`user_data`(起動スクリプト)はインスタンスの**初回起動時にしか自動実行されない**仕様のため、スクリプトの中身自体を変更した場合(`deploy-backend.sh.tpl`を編集した場合)は、`terraform apply`後にSSM経由で手動実行するか、インスタンスを作り直す必要がある。
 

@@ -22,30 +22,6 @@ variable "availability_zones" {
   default     = ["ap-northeast-1a", "ap-northeast-1c"]
 }
 
-variable "db_name" {
-  description = "RDSに作成するデータベース名"
-  type        = string
-  default     = "trello_clone"
-}
-
-variable "db_username" {
-  description = "RDSのマスターユーザー名"
-  type        = string
-  default     = "trello"
-}
-
-variable "db_instance_class" {
-  description = "RDSのインスタンスクラス"
-  type        = string
-  default     = "db.t4g.micro"
-}
-
-variable "db_allocated_storage" {
-  description = "RDSのストレージサイズ(GB)"
-  type        = number
-  default     = 20
-}
-
 variable "container_image_tag" {
   description = "EC2上で起動するバックエンドイメージのタグ(ECRへpush後に更新してapplyするか、再デプロイスクリプトで反映する)"
   type        = string

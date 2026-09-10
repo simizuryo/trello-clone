@@ -1,37 +1,38 @@
 # 03. AWS構成の全体像
 
-## 構成図
+このプロジェクトは、一気に全部を構築するのではなく**段階的に**AWS構成を作っていく。
+
+| フェーズ | 内容 | 状態 |
+|---|---|---|
+| Phase 1 | EC2 1台にフロントエンド(静的ファイル)+バックエンドAPIを同梱したコンテナを立てる | **今回の対象** |
+| Phase 2 | RDS(PostgreSQL)を追加し、EC2上のコンテナから接続する | 未着手 |
+| Phase 3(検討中) | フロントエンドをS3+CloudFrontに分離する | 未着手・採用するかも含めて検討中 |
+
+このドキュメントはPhase 1の構成を説明する。
+
+## 構成図(Phase 1)
 
 ```mermaid
 flowchart TB
     User["利用者のブラウザ"]
 
     subgraph AWS["AWS (ap-northeast-1)"]
-        CF["CloudFront\n(HTTPS配信・CDN)"]
-        S3["S3\nフロントエンド静的ファイル\n(React build成果物)"]
-
         subgraph VPC["VPC"]
             subgraph Public["パブリックサブネット x2"]
-                EC2["EC2 (t3.micro)\nSpring Bootコンテナ\n+ Elastic IP"]
-            end
-            subgraph Private["プライベートサブネット x2"]
-                RDS["RDS\nPostgreSQL"]
+                EC2["EC2 (t3.micro)\nSpring Bootコンテナ\n(フロントエンド静的ファイル + API)\n+ Elastic IP"]
             end
         end
 
-        ECR["ECR\nバックエンドDockerイメージ"]
-        SM["Secrets Manager\nDBパスワード"]
+        ECR["ECR\nバックエンド(+フロントエンド同梱)Dockerイメージ"]
         SSMSVC["SSM\n(Session Manager)"]
     end
 
-    User -- "HTTPS" --> CF
-    CF -- "静的ファイル取得(OAC経由)" --> S3
-    User -- "HTTP :80(API呼び出し)" --> EC2
-    EC2 -- "JDBC :5432" --> RDS
+    User -- "HTTP :80(画面表示・API呼び出し)" --> EC2
     EC2 -. "起動/再デプロイ時にイメージpull" .-> ECR
-    EC2 -. "起動/再デプロイ時にパスワード取得" .-> SM
     SSMSVC -. "鍵不要のシェル接続・コマンド実行" .-> EC2
 ```
+
+Phase 2でRDS(プライベートサブネット)、Phase 3(検討中)でS3/CloudFrontが図に追加される想定。
 
 ## 各リソースの役割
 
@@ -39,38 +40,36 @@ flowchart TB
 
 - **VPC**: このプロジェクト専用の仮想ネットワーク(`10.0.0.0/16`)
 - **パブリックサブネット x2**: 異なるアベイラビリティゾーン(データセンター)に1つずつ配置。バックエンドを動かすEC2インスタンスを置く。インターネットゲートウェイ経由で外部と直接通信できる
-- **プライベートサブネット x2**: RDSを置く。外部からの直接アクセス経路を持たない
-- **セキュリティグループ**: 通信を許可する範囲を絞るファイアウォール。「EC2は誰からでも80番ポートを受ける」「RDSはEC2からだけ5432番ポートを受ける」という2段構えで、必要最小限の通信だけを許可している
+- **セキュリティグループ**: 通信を許可する範囲を絞るファイアウォール。「EC2は誰からでも80番ポートを受ける」という必要最小限の通信だけを許可している
 
-このプロジェクトはコスト削減のため **NATゲートウェイを作らない**。通常はプライベートサブネットのリソースが外部と通信するためにNATゲートウェイ(月額$30程度〜)が必要だが、RDSは自発的に外部と通信しないため不要。EC2インスタンスは代わりにパブリックサブネットに置き、セキュリティグループで受信を絞ることで安全性を確保している(詳細は[00-concepts.md](00-concepts.md)、判断の背景は`network.tf`のコメントを参照)。
+Phase 2でRDSを追加する際、プライベートサブネットとRDS用セキュリティグループを再度追加する(コスト削減のためNATゲートウェイは作らない方針は維持する)。
 
 ### バックエンド実行基盤(`ecr.tf`, `ec2.tf`)
 
-- **ECR**: `backend/Dockerfile` からビルドしたコンテナイメージを保管するプライベートなDockerレジストリ
-- **EC2(t3.micro)**: バックエンドコンテナを直接動かす1台のインスタンス。ALBやECSのようなマネージドな実行基盤は使わず、起動時にEC2自身がECRからイメージをpullしてDockerコンテナとして起動する(`terraform/templates/deploy-backend.sh.tpl`)。t3.microはAWSの無料利用枠の対象になりうるインスタンスタイプ
+- **ECR**: `backend/Dockerfile` からビルドしたコンテナイメージを保管するプライベートなDockerレジストリ。このイメージには、`app/`(React)をビルドした静的ファイルも `src/main/resources/static/` として同梱されている(Spring Bootが自動的に配信する)
+- **EC2(t3.micro)**: フロントエンド画面+バックエンドAPIを1つのコンテナとして動かす1台のインスタンス。ALBやECSのようなマネージドな実行基盤は使わず、起動時にEC2自身がECRからイメージをpullしてDockerコンテナとして起動する(`terraform/templates/deploy-backend.sh.tpl`)。t3.microはAWSの無料利用枠の対象になりうるインスタンスタイプ
 - **Elastic IP**: EC2に紐づく固定のパブリックIPアドレス。インスタンスを再起動してもIPアドレスが変わらない
 - **SSM(Systems Manager) Session Manager**: SSHキーを使わずにEC2へシェル接続・コマンド実行できる仕組み。ポート22を一切開けていないため、鍵の管理や紛失のリスクがない
 
-> 元々はALB + ECS Fargateの構成も検討したが、**どちらも無料利用枠の対象外**(常時起動で合計月$25〜30程度)なため、無料利用枠の対象になりうるEC2単一インスタンス構成に変更した。詳細は[05-teardown-and-cost.md](05-teardown-and-cost.md)。
+> 元々はALB + ECS Fargateの構成も検討したが、**どちらも無料利用枠の対象外**(常時起動で合計月$25〜30程度)なため、無料利用枠の対象になりうるEC2単一インスタンス構成にした。詳細は[05-teardown-and-cost.md](05-teardown-and-cost.md)。
 
-### データベース(`rds.tf`)
+### フロントエンドとバックエンドの同居について
 
-- **RDS(PostgreSQL)**: マネージドなPostgreSQL。バックアップ・パッチ適用などをAWSが代行する
-- **Secrets Manager**: Terraformが自動生成したDBパスワードを保管する。EC2はこのシークレットのARNを起動スクリプトから参照し、起動時に安全にパスワードを取得する(コードやtfvarsに平文で書かない)
+個人・学習用途で認証もなく利用者もEC2 1台で十分なため、Phase 1では**S3+CloudFrontを使わず、フロントエンドとバックエンドを同じコンテナ・同じEC2で動かす**。React(`app/`)のビルド成果物をSpring Bootの静的リソースとして同梱し、1つのDockerイメージ・1つのポート(80番)でどちらも配信する。
 
-### フロントエンド配信(`s3_cloudfront.tf`)
+メリット:
+- 同一オリジンになるため、本番環境ではCORS設定が不要
+- リソースが少なく、構成もシンプル(VPC・セキュリティグループもEC2用の1つだけ)
 
-- **S3**: `npm run build` で生成した静的ファイル(HTML/CSS/JS)を置くだけのストレージ。バケット自体への直接アクセスは許可しない(非公開)
-- **CloudFront**: S3の中身を世界中のエッジロケーションにキャッシュして配信するCDN。HTTPS化・高速化を担う。S3へのアクセスは **Origin Access Control(OAC)** という仕組みでCloudFrontからのみ許可している
+デメリット(将来S3+CloudFrontへ分離する場合の動機):
+- CDNによるキャッシュ・高速配信が無い
+- HTTPS化するにはEC2側で証明書を用意する必要がある(Phase 1ではHTTPのみ)
+- フロントエンドの変更だけでもバックエンドの再ビルド・再デプロイが必要になる
 
-## リクエストの流れ
+### 現時点でまだ無いもの(Phase 2以降)
 
-1. 利用者がCloudFrontのURL(`https://xxxx.cloudfront.net`)にアクセス → S3上のReactアプリが返る
-2. フロントエンドのJavaScriptが、ビルド時に埋め込まれた `VITE_API_BASE_URL`(EC2のElastic IP)へAPIリクエストを送る
-3. EC2上のSpring Bootコンテナがリクエストを受ける(ポート80 → コンテナ内部ポート8080へマッピング)
-4. Spring BootがRDSのPostgreSQLへ問い合わせて結果を返す
-
-フロントエンド(CloudFrontのオリジン)とバックエンド(EC2のオリジン)は別ドメインになるため、ブラウザからのAPI呼び出しはクロスオリジンリクエストになる。これを許可するため、EC2起動スクリプトが渡す環境変数 `APP_CORS_ALLOWED_ORIGINS` にCloudFrontのURLを設定している(`backend/src/main/resources/application.yml` 参照)。
+- **RDS(PostgreSQL)**: Phase 1のEC2上のコンテナはDB接続先が無いため、アプリの起動(データベース接続)に失敗する可能性がある。これはPhase 1の時点では想定内で、Phase 2でRDSを追加した後に解消する
+- **Secrets Manager**: RDSのパスワード管理と合わせてPhase 2で追加する
 
 ## トラブルシューティング(SSM接続)
 
