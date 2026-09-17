@@ -81,6 +81,22 @@ resource "aws_iam_instance_profile" "ec2" {
   role = aws_iam_role.ec2.name
 }
 
+# デプロイスクリプト本体。/usr/local/bin/deploy-backend.sh として永続化し、
+# 初回起動時だけでなく再デプロイ時にもSSM経由で直接実行できるようにする(下記user_data参照)。
+locals {
+  deploy_script = templatefile("${path.module}/templates/deploy-backend.sh.tpl", {
+    aws_region             = var.aws_region
+    ecr_repository_url     = aws_ecr_repository.backend.repository_url
+    container_image_tag    = var.container_image_tag
+    backend_container_port = var.backend_container_port
+    db_host                = aws_db_instance.main.address
+    db_port                = aws_db_instance.main.port
+    db_name                = var.db_name
+    db_username            = var.db_username
+    db_password_param_name = aws_ssm_parameter.db_password.name
+  })
+}
+
 resource "aws_instance" "backend" {
   ami                    = data.aws_ami.al2023.id
   instance_type          = var.ec2_instance_type
@@ -93,17 +109,17 @@ resource "aws_instance" "backend" {
     http_tokens = "required"
   }
 
-  user_data = templatefile("${path.module}/templates/deploy-backend.sh.tpl", {
-    aws_region             = var.aws_region
-    ecr_repository_url     = aws_ecr_repository.backend.repository_url
-    container_image_tag    = var.container_image_tag
-    backend_container_port = var.backend_container_port
-    db_host                = aws_db_instance.main.address
-    db_port                = aws_db_instance.main.port
-    db_name                = var.db_name
-    db_username            = var.db_username
-    db_password_param_name = aws_ssm_parameter.db_password.name
-  })
+  # user_data自体はcloud-initがその場で実行するだけで消えるため、
+  # まずdeploy_scriptを/usr/local/bin/deploy-backend.shとして書き出してから実行する。
+  # これにより再デプロイ時もSSM経由で同じパスを呼び出せる(base64経由で埋め込み、
+  # heredocの引用符・インデント起因の破損を避ける)。
+  user_data = <<-EOT
+    #!/bin/bash
+    set -eu -o pipefail
+    echo ${base64encode(local.deploy_script)} | base64 -d > /usr/local/bin/deploy-backend.sh
+    chmod +x /usr/local/bin/deploy-backend.sh
+    /usr/local/bin/deploy-backend.sh
+  EOT
 
   tags = {
     Name = "${var.project_name}-backend"
