@@ -36,7 +36,9 @@ Trello風のタスク管理(カンバンボード)アプリ。プログラミン
 | バックエンド | Java | 21 |
 | バックエンド | Spring Boot(web / data-jpa / actuator / test) | 3.3.4 |
 | バックエンド | Flyway(DBマイグレーション) | 10.10.0 |
+| バックエンド | logstash-logback-encoder(JSONログ) | 8.0 |
 | データベース | PostgreSQL(Docker) | 16系(イメージ`postgres:16`) |
+| テスト | Vitest / Testing Library(FE)、JUnit 5 / Mockito(BE)、Playwright(E2E) | 5.0.5 / 16.3.3、Spring Boot 3.3.4管理、1.64.1 |
 
 フロントエンドはTypeScriptを使わずJavaScriptで実装。バージョンの詳細・依存パッケージ一覧は [05-tech-stack.md](docs/requirements/05-tech-stack.md) を参照。
 
@@ -45,13 +47,15 @@ Trello風のタスク管理(カンバンボード)アプリ。プログラミン
 ```
 .
 ├── app/                 # フロントエンド(React + Vite)
-│   └── src/
-│       ├── api/         # バックエンドAPIクライアント
-│       ├── components/  # 画面・UIコンポーネント
-│       ├── context/     # マイボードの状態管理(BoardContext)
-│       ├── db/          # IndexedDB(idb)ラッパー
-│       ├── hooks/        # カスタムフック
-│       └── utils/        # 表示整形などのユーティリティ
+│   ├── src/
+│   │   ├── api/         # バックエンドAPIクライアント
+│   │   ├── components/  # 画面・UIコンポーネント
+│   │   ├── context/     # マイボードの状態管理(BoardContext)
+│   │   ├── db/          # IndexedDB(idb)ラッパー
+│   │   ├── hooks/       # カスタムフック
+│   │   ├── test/        # テストのセットアップ・画面単位の統合テスト
+│   │   └── utils/       # 表示整形・並び替えロジック・logger
+│   └── e2e/             # Playwright E2Eテスト
 ├── backend/             # バックエンド(Spring Boot + PostgreSQL)
 │   └── src/main/java/com/example/trelloclone/
 │       ├── controller/  # REST APIエンドポイント
@@ -59,11 +63,13 @@ Trello風のタスク管理(カンバンボード)アプリ。プログラミン
 │       ├── entity/       # JPAエンティティ
 │       ├── repository/   # Spring Data JPAリポジトリ
 │       ├── dto/          # リクエスト/レスポンスDTO
-│       └── config/       # CORS設定など
+│       ├── config/       # CORS設定など
+│       └── logging/      # 相関IDフィルタ・ログのマスキング
 ├── docs/
 │   ├── requirements.md         # 要件定義書(索引)
 │   ├── requirements/           # 要件定義書(項目ごとに分割)
 │   └── prototype/index.html    # 画面プロトタイプ(静的HTML)
+├── .github/workflows/   # CI(GitHub Actions)
 ├── docker-compose.yml   # PostgreSQLのローカル起動用
 └── CLAUDE.md            # 開発ルール(Issue駆動・ブランチ運用・PRフロー)
 ```
@@ -106,6 +112,53 @@ npm run dev
 docker compose down        # PostgreSQLコンテナを停止(データは保持)
 docker compose down -v     # データも含めて完全に削除する場合
 ```
+
+## テスト
+
+| 種類 | 対象 | ツール | 実行コマンド |
+|---|---|---|---|
+| 単体 | FE: 表示整形・並び替えロジック・reducer・フック・APIクライアント・logger | Vitest + Testing Library | `cd app && npm test` |
+| 単体 | BE: `CardService`・リクエスト検証(`@WebMvcTest`)・相関IDフィルタ・マスキング | JUnit 5 + Mockito | `cd backend && mvn test` |
+| 統合 | FE: マイボード(fake IndexedDB)/検索(サーバー)画面(疑似API)を画面単位で操作 | Vitest + Testing Library | `cd app && npm test`(単体と同時に実行) |
+| 統合 | BE: REST API → JPA → PostgreSQL、ログ出力(JSON・相関ID・マスキング) | Spring Boot Test + MockMvc | `cd backend && mvn test`(**PostgreSQL起動が必要**) |
+| E2E | 最重要フロー: マイボード/検索(サーバー)でのリスト・カード作成→編集→ドラッグ移動→リロード後の永続化 | Playwright(Chromium) | `cd app && npm run test:e2e` |
+
+- バックエンドのテストはDBを使うものがあるため、先に `docker compose up -d` しておく。各テストはトランザクション内で実行されロールバックされる。
+- E2Eは初回のみ `npx playwright install chromium` が必要。バックエンド(8080)・フロントエンド(5173)が起動済みならそれを使い、未起動なら自動で起動する(バックエンドの起動コマンドは環境変数 `E2E_BACKEND_COMMAND` で変更可)。検索(サーバー)のE2EはDBにリスト・カードを作成する(削除APIがないため)ので、開発用データを汚したくない場合は別DBを指定してバックエンドを起動しておく:
+  ```bash
+  docker exec trello-clone-postgres createdb -U trello trello_clone_e2e
+  cd backend && SPRING_DATASOURCE_URL=jdbc:postgresql://localhost:5432/trello_clone_e2e mvn spring-boot:run
+  ```
+- E2Eが失敗すると、フルページのスクリーンショットとトレースが `app/test-results/<テスト名>/` に保存される(`npx playwright show-trace <trace.zip>` で再生可能)。HTMLレポートは `app/playwright-report/`。
+
+## ロギング
+
+バックエンドは1行1JSONの構造化ログを標準出力に出す。
+
+```json
+{"timestamp":"2026-10-21T21:48:55.886+09:00","message":"HTTP request completed method=GET path=/api/lists status=200 durationMs=195","logger_name":"com.example.trelloclone.logging.RequestCorrelationFilter","thread_name":"http-nio-8080-exec-4","level":"INFO","requestId":"e2e-check-1","method":"GET","path":"/api/lists","status":200,"durationMs":195,"app":"trello-clone-backend"}
+```
+
+- **相関ID**: リクエストヘッダ `X-Request-Id` が妥当な形式(英数字と `._-`、64文字以内)ならその値を使い、それ以外はUUIDを生成する。値はそのリクエスト中のすべてのログの `requestId` に入り、レスポンスヘッダ `X-Request-Id` にも返す。フロントエンドのAPIクライアントは呼び出しごとにIDを付けて送るため、ブラウザのログとサーバーのログを同じIDで突き合わせられる。
+- **アクセスログ**: リクエストごとにメソッド・パス(クエリ文字列は含めない)・ステータス・処理時間を1行出す。5xxと未処理例外はERRORレベル。
+- **マスキング**: `password` / `token` / `secret` / `api_key` / `Authorization` などの値、`Bearer` トークン、メールアドレスのローカル部を `****` に置き換える(メッセージ・構造化フィールド・スタックトレースのすべてが対象)。
+- **設定(環境変数)**:
+
+  | 変数 | 既定値 | 説明 |
+  |---|---|---|
+  | `LOG_FORMAT` | `json` | `plain` にすると人が読みやすい1行形式(相関IDとマスキングは同じく有効) |
+  | `LOG_LEVEL` | `INFO` | アプリ(`com.example.trelloclone`)のログレベル |
+  | `SQL_LOG_LEVEL` | `DEBUG` | 実行SQLのログ(`org.hibernate.SQL`)。`INFO` にすると出力しない |
+
+フロントエンドは `app/src/utils/logger.js` が同じ形式(timestamp / level / logger / message + コンテキスト)のJSONをブラウザのコンソールに出し、同じルールでマスキングする。レベルは `VITE_LOG_LEVEL`(`debug` / `info` / `warn` / `error` / `silent`、既定は開発時 `debug`・本番ビルド `info`)で変更できる。
+
+## CI
+
+`.github/workflows/ci.yml` で、PRとmainへのpushごとに以下を自動実行する。
+
+1. **Frontend**: lint → 単体・統合テスト → ビルド
+2. **Backend**: PostgreSQLサービスコンテナを起動して `mvn verify`(単体・統合テスト)
+3. **E2E**: 1と2が成功したら、空のPostgreSQLに対してバックエンドとフロントエンドを起動してPlaywrightを実行する。失敗時はスクリーンショット・トレース・HTMLレポートを成果物 `e2e-failure-artifacts` としてアップロードする(保持14日)
 
 ## AWSへのデプロイ
 

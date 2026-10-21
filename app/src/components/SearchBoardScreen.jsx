@@ -4,44 +4,10 @@ import { createCard, createList, fetchLists, moveCard, searchCards, updateCardDe
 import { useDebouncedValue } from "../hooks/useDebouncedValue";
 import SearchList from "./SearchList";
 import AddListForm from "./AddListForm";
+import { groupCardsByList, moveCardInCards } from "../utils/cardOrder";
 
 function groupCardsByListId(cards) {
-  const map = new Map();
-  for (const card of cards) {
-    if (!map.has(card.listId)) map.set(card.listId, []);
-    map.get(card.listId).push(card);
-  }
-  for (const arr of map.values()) arr.sort((a, b) => a.sortOrder - b.sortOrder);
-  return map;
-}
-
-// Moves `activeId` into `targetListId` at `targetIndex`, reindexing the
-// affected list(s) so `sortOrder` stays a dense 0..n-1 sequence per list.
-// Mirrors the algorithm the backend uses in CardService#moveCard so the
-// optimistic UI state matches what the server will persist.
-function moveCardInCards(cards, activeId, targetListId, targetIndex) {
-  const active = cards.find((c) => c.id === activeId);
-  if (!active) return cards;
-  const sourceListId = active.listId;
-
-  const byList = groupCardsByListId(cards);
-  const sourceArr = (byList.get(sourceListId) || []).filter((c) => c.id !== activeId);
-
-  let targetArr;
-  if (sourceListId === targetListId) {
-    targetArr = sourceArr;
-  } else {
-    targetArr = (byList.get(targetListId) || []).slice();
-  }
-
-  const clampedIndex = Math.max(0, Math.min(targetIndex, targetArr.length));
-  targetArr.splice(clampedIndex, 0, { ...active, listId: targetListId });
-
-  const untouched = cards.filter((c) => c.listId !== sourceListId && c.listId !== targetListId);
-  const reindexedSource = sourceListId === targetListId ? [] : sourceArr.map((c, i) => ({ ...c, sortOrder: i }));
-  const reindexedTarget = targetArr.map((c, i) => ({ ...c, sortOrder: i }));
-
-  return [...untouched, ...reindexedSource, ...reindexedTarget];
+  return groupCardsByList(cards, "sortOrder");
 }
 
 export default function SearchBoardScreen() {
@@ -161,7 +127,7 @@ export default function SearchBoardScreen() {
       if (currentIndex === targetIndex || currentIndex === -1) return;
     }
 
-    setCards((prev) => moveCardInCards(prev, active.id, targetListId, targetIndex));
+    setCards((prev) => moveCardInCards(prev, active.id, targetListId, targetIndex, "sortOrder"));
   }
 
   async function handleDragEnd() {

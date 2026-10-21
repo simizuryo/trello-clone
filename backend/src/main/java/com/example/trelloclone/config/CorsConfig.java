@@ -1,5 +1,6 @@
 package com.example.trelloclone.config;
 
+import com.example.trelloclone.logging.RequestCorrelationFilter;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.web.servlet.config.annotation.CorsRegistry;
@@ -18,6 +19,7 @@ public class CorsConfig implements WebMvcConfigurer {
     public void addCorsMappings(CorsRegistry registry) {
         registry.addMapping("/api/**")
                 .allowedOrigins(allowedOrigins)
-                .allowedMethods("GET", "POST", "PATCH");
+                .allowedMethods("GET", "POST", "PATCH")
+                .exposedHeaders(RequestCorrelationFilter.HEADER);
     }
 }

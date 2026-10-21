@@ -5,6 +5,8 @@ import com.example.trelloclone.entity.CardEntity;
 import com.example.trelloclone.entity.ListEntity;
 import com.example.trelloclone.repository.CardRepository;
 import com.example.trelloclone.repository.ListRepository;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -12,8 +14,12 @@ import org.springframework.web.server.ResponseStatusException;
 
 import java.util.List;
 
+import static net.logstash.logback.argument.StructuredArguments.kv;
+
 @Service
 public class CardService {
+
+    private static final Logger log = LoggerFactory.getLogger(CardService.class);
 
     private final CardRepository cardRepository;
     private final ListRepository listRepository;
@@ -52,6 +58,8 @@ public class CardService {
             cardRepository.saveAll(targetSiblings);
         }
 
+        log.info("Card moved {} {} {} {}", kv("cardId", cardId), kv("fromListId", sourceListId),
+                kv("toListId", targetListId), kv("sortOrder", card.getSortOrder()));
         return CardResponse.from(card);
     }
 
