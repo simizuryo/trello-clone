@@ -8,31 +8,10 @@ import {
   putList,
   putLists,
 } from "../db/db";
+import { sortListCards } from "../utils/cardOrder";
+import { initialState, reducer } from "./boardReducer";
 
 const BoardContext = createContext(null);
-
-const PRIORITY_RANK = { high: 0, medium: 1, low: 2 };
-
-function initialState() {
-  return { status: "loading", error: null, lists: [], cards: [] };
-}
-
-function reducer(state, action) {
-  switch (action.type) {
-    case "LOAD_SUCCESS":
-      return { status: "ready", error: null, lists: action.lists, cards: action.cards };
-    case "LOAD_ERROR":
-      return { ...state, status: "error", error: action.error };
-    case "SET_LISTS":
-      return { ...state, lists: action.lists };
-    case "SET_CARDS":
-      return { ...state, cards: action.cards };
-    case "SAVE_ERROR":
-      return { ...state, saveError: action.error };
-    default:
-      return state;
-  }
-}
 
 function makeId(prefix) {
   return `${prefix}-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 8)}`;
@@ -164,19 +143,7 @@ export function BoardProvider({ children }) {
     (listId, key) => {
       const inList = state.cards.filter((c) => c.listId === listId);
       const others = state.cards.filter((c) => c.listId !== listId);
-      const sorted = [...inList].sort((a, b) => {
-        if (key === "priority") {
-          const ra = a.priority ? PRIORITY_RANK[a.priority] : 3;
-          const rb = b.priority ? PRIORITY_RANK[b.priority] : 3;
-          return ra - rb;
-        }
-        // dueDate: ascending, null last
-        if (!a.dueDate && !b.dueDate) return 0;
-        if (!a.dueDate) return 1;
-        if (!b.dueDate) return -1;
-        return a.dueDate.localeCompare(b.dueDate);
-      });
-      const reordered = sorted.map((c, index) => ({ ...c, order: index }));
+      const reordered = sortListCards(inList, key);
       const nextCards = [...others, ...reordered];
       dispatch({ type: "SET_CARDS", cards: nextCards });
       putCards(reordered).catch(reportSaveError);

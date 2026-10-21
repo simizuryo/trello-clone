@@ -4,46 +4,18 @@ import { useBoard } from "../context/BoardContext";
 import List from "./List";
 import AddListForm from "./AddListForm";
 import ConfirmDialog from "./ConfirmDialog";
+import { groupCardsByList as groupCardsByListBase, moveCardInCards } from "../utils/cardOrder";
 
 function byOrder(a, b) {
   return a.order - b.order;
 }
 
 function groupCardsByList(cards) {
-  const map = new Map();
-  for (const card of cards) {
-    if (!map.has(card.listId)) map.set(card.listId, []);
-    map.get(card.listId).push(card);
-  }
-  for (const arr of map.values()) arr.sort(byOrder);
-  return map;
+  return groupCardsByListBase(cards, "order");
 }
 
-// Moves `activeId` into `targetListId` at `targetIndex`, reindexing the
-// affected list(s) so `order` stays a dense 0..n-1 sequence per list.
 function moveCard(cards, activeId, targetListId, targetIndex) {
-  const active = cards.find((c) => c.id === activeId);
-  if (!active) return cards;
-  const sourceListId = active.listId;
-
-  const byList = groupCardsByList(cards);
-  const sourceArr = (byList.get(sourceListId) || []).filter((c) => c.id !== activeId);
-
-  let targetArr;
-  if (sourceListId === targetListId) {
-    targetArr = sourceArr;
-  } else {
-    targetArr = (byList.get(targetListId) || []).slice();
-  }
-
-  const clampedIndex = Math.max(0, Math.min(targetIndex, targetArr.length));
-  targetArr.splice(clampedIndex, 0, { ...active, listId: targetListId });
-
-  const untouched = cards.filter((c) => c.listId !== sourceListId && c.listId !== targetListId);
-  const reindexedSource = sourceListId === targetListId ? [] : sourceArr.map((c, i) => ({ ...c, order: i }));
-  const reindexedTarget = targetArr.map((c, i) => ({ ...c, order: i }));
-
-  return [...untouched, ...reindexedSource, ...reindexedTarget];
+  return moveCardInCards(cards, activeId, targetListId, targetIndex, "order");
 }
 
 export default function Board() {
