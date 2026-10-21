@@ -1,0 +1,27 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<included>
+  <appender name="CONSOLE" class="ch.qos.logback.core.ConsoleAppender">
+    <encoder class="net.logstash.logback.encoder.LogstashEncoder">
+      <fieldNames>
+        <timestamp>timestamp</timestamp>
+        <version>[ignore]</version>
+        <levelValue>[ignore]</levelValue>
+      </fieldNames>
+      <customFields>{"app":"${APP_NAME}"}</customFields>
+      <jsonGeneratorDecorator class="net.logstash.logback.mask.MaskingJsonGeneratorDecorator">
+        <defaultMask>****</defaultMask>
+        <!-- mask whole values of fields with these names, at any depth -->
+        <path>password</path>
+        <path>passwd</path>
+        <path>secret</path>
+        <path>token</path>
+        <path>accessToken</path>
+        <path>refreshToken</path>
+        <path>apiKey</path>
+        <path>authorization</path>
+        <!-- mask secrets embedded in any string value (message, stack trace, ...) -->
+        <valueMasker class="com.example.trelloclone.logging.SensitiveValueMasker"/>
+      </jsonGeneratorDecorator>
+    </encoder>
+  </appender>
+</included>

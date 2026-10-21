@@ -10,5 +10,7 @@ export default defineConfig({
     setupFiles: ['./src/test/setup.js'],
     include: ['src/**/*.test.{js,jsx}'],
     restoreMocks: true,
+    // keep test output readable; logger tests inject their own level/sink
+    env: { VITE_LOG_LEVEL: 'silent' },
   },
 })

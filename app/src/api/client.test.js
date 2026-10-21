@@ -65,6 +65,23 @@ describe("api client", () => {
     expect(body).toEqual({ listId: 3, sortOrder: 0 });
   });
 
+  it("sends a unique X-Request-Id header with every request", async () => {
+    await fetchLists();
+    const first = lastCall().init.headers["X-Request-Id"];
+    await createList({ title: "x" });
+    const second = lastCall().init.headers["X-Request-Id"];
+
+    expect(first).toMatch(/^[0-9a-f-]{36}$/);
+    expect(second).toMatch(/^[0-9a-f-]{36}$/);
+    expect(first).not.toBe(second);
+  });
+
+  it("rethrows network errors unchanged", async () => {
+    const networkError = new TypeError("Failed to fetch");
+    fetchMock.mockRejectedValueOnce(networkError);
+    await expect(fetchLists()).rejects.toBe(networkError);
+  });
+
   it.each([
     ["GET", () => fetchLists()],
     ["POST", () => createList({ title: "x" })],

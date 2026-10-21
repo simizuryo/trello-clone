@@ -4,6 +4,8 @@ import com.example.trelloclone.dto.ListCreateRequest;
 import com.example.trelloclone.dto.ListResponse;
 import com.example.trelloclone.entity.ListEntity;
 import com.example.trelloclone.repository.ListRepository;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -17,9 +19,13 @@ import org.springframework.web.server.ResponseStatusException;
 import java.time.LocalDateTime;
 import java.util.List;
 
+import static net.logstash.logback.argument.StructuredArguments.kv;
+
 @RestController
 @RequestMapping("/api/lists")
 public class ListController {
+
+    private static final Logger log = LoggerFactory.getLogger(ListController.class);
 
     private final ListRepository listRepository;
 
@@ -53,6 +59,7 @@ public class ListController {
         entity.setCreatedAt(LocalDateTime.now());
 
         ListEntity saved = listRepository.save(entity);
+        log.info("List created {}", kv("listId", saved.getId()));
         return ResponseEntity.status(HttpStatus.CREATED).body(ListResponse.from(saved));
     }
 }

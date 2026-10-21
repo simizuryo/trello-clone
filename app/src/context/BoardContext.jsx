@@ -9,9 +9,11 @@ import {
   putLists,
 } from "../db/db";
 import { sortListCards } from "../utils/cardOrder";
+import { createLogger } from "../utils/logger";
 import { initialState, reducer } from "./boardReducer";
 
 const BoardContext = createContext(null);
+const log = createLogger("board");
 
 function makeId(prefix) {
   return `${prefix}-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 8)}`;
@@ -38,7 +40,7 @@ export function BoardProvider({ children }) {
   }, []);
 
   const reportSaveError = useCallback((err) => {
-    console.error(err);
+    log.error("Failed to save board change to IndexedDB", { error: err });
     dispatch({ type: "SAVE_ERROR", error: "保存に失敗しました。変更が反映されていない可能性があります。" });
   }, []);
 

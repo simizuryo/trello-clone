@@ -1,35 +1,51 @@
+import { createLogger, createRequestId } from "../utils/logger";
+
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL ?? "http://localhost:8080";
 
-async function getJson(path) {
-  const res = await fetch(`${API_BASE_URL}${path}`);
+export const REQUEST_ID_HEADER = "X-Request-Id";
+
+const log = createLogger("api");
+
+// Every request carries a fresh X-Request-Id so that browser logs and backend logs
+// (which put the same ID in their `requestId` field) can be correlated.
+async function request(method, path, body) {
+  const requestId = createRequestId();
+  const headers = { [REQUEST_ID_HEADER]: requestId };
+  const init = { method, headers };
+  if (body !== undefined) {
+    headers["Content-Type"] = "application/json";
+    init.body = JSON.stringify(body);
+  }
+  // Query strings may contain user-entered search keywords; keep them out of logs.
+  const context = { requestId, method, path: path.split("?")[0] };
+
+  const start = Date.now();
+  let res;
+  try {
+    res = await fetch(`${API_BASE_URL}${path}`, init);
+  } catch (err) {
+    log.error("API request error", { ...context, durationMs: Date.now() - start, error: err });
+    throw err;
+  }
+  const durationMs = Date.now() - start;
   if (!res.ok) {
+    log.error("API request failed", { ...context, status: res.status, durationMs });
     throw new Error(`API request failed: ${res.status} ${path}`);
   }
+  log.debug("API request completed", { ...context, status: res.status, durationMs });
   return res.json();
 }
 
-async function postJson(path, body) {
-  const res = await fetch(`${API_BASE_URL}${path}`, {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify(body),
-  });
-  if (!res.ok) {
-    throw new Error(`API request failed: ${res.status} ${path}`);
-  }
-  return res.json();
+function getJson(path) {
+  return request("GET", path);
 }
 
-async function patchJson(path, body) {
-  const res = await fetch(`${API_BASE_URL}${path}`, {
-    method: "PATCH",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify(body),
-  });
-  if (!res.ok) {
-    throw new Error(`API request failed: ${res.status} ${path}`);
-  }
-  return res.json();
+function postJson(path, body) {
+  return request("POST", path, body);
+}
+
+function patchJson(path, body) {
+  return request("PATCH", path, body);
 }
 
 export function fetchLists() {

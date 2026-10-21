@@ -11,6 +11,8 @@ import com.example.trelloclone.repository.CardRepository;
 import com.example.trelloclone.repository.CardSpecifications;
 import com.example.trelloclone.repository.ListRepository;
 import com.example.trelloclone.service.CardService;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.data.domain.Sort;
 import org.springframework.data.jpa.domain.Specification;
 import org.springframework.http.HttpStatus;
@@ -28,9 +30,13 @@ import org.springframework.web.server.ResponseStatusException;
 import java.time.LocalDateTime;
 import java.util.List;
 
+import static net.logstash.logback.argument.StructuredArguments.kv;
+
 @RestController
 @RequestMapping("/api/cards")
 public class CardController {
+
+    private static final Logger log = LoggerFactory.getLogger(CardController.class);
 
     private final CardRepository cardRepository;
     private final ListRepository listRepository;
@@ -97,6 +103,7 @@ public class CardController {
         entity.setCreatedAt(LocalDateTime.now());
 
         CardEntity saved = cardRepository.save(entity);
+        log.info("Card created {} {}", kv("cardId", saved.getId()), kv("listId", list.getId()));
         return ResponseEntity.status(HttpStatus.CREATED).body(CardResponse.from(saved));
     }
 
@@ -123,6 +130,7 @@ public class CardController {
         entity.setDueDate(request.dueDate());
 
         CardEntity saved = cardRepository.save(entity);
+        log.info("Card updated {}", kv("cardId", saved.getId()));
         return CardResponse.from(saved);
     }
 

@@ -1,0 +1,25 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  Logging configuration.
+
+  Output format is selected by app.logging.format (env: LOG_FORMAT), which picks
+  logging/logback-<format>.xml:
+    json  (default) one JSON object per line: timestamp, level, logger, thread, message,
+                    requestId (correlation ID), structured fields, stack_trace
+    plain           human-readable single line, for local development
+
+  Sensitive values (passwords, tokens, Bearer credentials, e-mail addresses) are masked
+  in both formats. See com.example.trelloclone.logging.SensitiveDataMasker.
+-->
+<configuration>
+  <include resource="org/springframework/boot/logging/logback/defaults.xml"/>
+
+  <springProperty name="LOG_FORMAT" source="app.logging.format" defaultValue="json"/>
+  <springProperty name="APP_NAME" source="spring.application.name" defaultValue="trello-clone-backend"/>
+
+  <include resource="logging/logback-${LOG_FORMAT}.xml"/>
+
+  <root level="INFO">
+    <appender-ref ref="CONSOLE"/>
+  </root>
+</configuration>
