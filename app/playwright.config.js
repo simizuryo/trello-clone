@@ -31,7 +31,8 @@ export default defineConfig({
       url: "http://localhost:8080/actuator/health",
       reuseExistingServer: !isCI,
       timeout: 180_000,
-      stdout: "ignore",
+      // backend JSON logs are useful when debugging a CI failure, noise locally
+      stdout: isCI ? "pipe" : "ignore",
       stderr: "pipe",
     },
     {

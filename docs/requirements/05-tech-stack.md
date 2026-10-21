@@ -18,6 +18,10 @@
 | @dnd-kit/utilities | 3.2.2 | dnd-kit用ユーティリティ(CSS変換等) |
 | idb | 8.0.3 | IndexedDBのPromiseラッパー(マイボード/ローカル版で使用) |
 | oxlint | 1.77.0 | Lint |
+| Vitest | 5.0.5 | 単体・統合テストランナー(jsdom環境) |
+| @testing-library/react / user-event / jest-dom | 16.3.3 / 14.6.8 / 7.0.1 | 画面単位のテスト・ユーザー操作の再現 |
+| fake-indexeddb | 6.2.6 | テスト用のIndexedDB実装 |
+| @playwright/test | 1.64.1 | E2Eテスト(Chromium) |
 
 ## 9.1 バックエンド構成(実装済み: List/CardのCRUD・検索・Update API、検索(サーバー)画面との連携まで)
 - バックエンド: Java 21 + Spring Boot 3.3.4(Maven, `backend/`) + REST API
@@ -34,6 +38,7 @@
 | Spring Boot(`spring-boot-starter-parent`) | 3.3.4 | アプリケーションフレームワーク一式(web / data-jpa / actuator / test を含む) |
 | PostgreSQL JDBC Driver | 42.7.4 | DB接続(Spring Boot 3.3.4が管理するバージョン) |
 | Flyway(`flyway-core` / `flyway-database-postgresql`) | 10.10.0 | DBマイグレーション(Spring Boot 3.3.4が管理するバージョン) |
+| logstash-logback-encoder | 8.0 | JSON構造化ログ出力・ログのマスキング |
 
 ## 9.2 フロントエンドとバックエンドの連携状況
 - フロントエンド(`app/`)は「マイボード」(IndexedDB, ローカル永続化)と「検索(サーバー)」(Spring Boot API経由でPostgreSQLへ永続化)の2画面をタブで切り替える構成
