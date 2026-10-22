@@ -97,9 +97,9 @@ export default function SearchBoardScreen() {
     }
   }
 
-  function resolveTargetListId(overId) {
-    if (lists.some((l) => l.id === overId)) return overId;
-    const overCard = cards.find((c) => c.id === overId);
+  function resolveTargetListId(over) {
+    if (over.data.current?.listId != null) return over.data.current.listId;
+    const overCard = cards.find((c) => c.id === over.id);
     return overCard ? overCard.listId : null;
   }
 
@@ -114,7 +114,7 @@ export default function SearchBoardScreen() {
     const activeCardData = cards.find((c) => c.id === active.id);
     if (!activeCardData) return;
 
-    const targetListId = resolveTargetListId(over.id);
+    const targetListId = resolveTargetListId(over);
     if (!targetListId) return;
 
     const cardsByList = groupCardsByListId(cards);

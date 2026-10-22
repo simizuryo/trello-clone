@@ -4,7 +4,9 @@ import SearchCard from "./SearchCard";
 import AddCardForm from "./AddCardForm";
 
 export default function SearchList({ list, cards, onAddCard, onUpdateCard }) {
-  const { setNodeRef } = useDroppable({ id: list.id });
+  // List and card IDs are separate DB sequences, so a raw list ID can equal a
+  // card ID; dnd-kit needs droppable IDs to be unique within the DndContext (#20).
+  const { setNodeRef } = useDroppable({ id: `list-${list.id}`, data: { listId: list.id } });
   const cardIds = cards.map((c) => c.id);
 
   return (
