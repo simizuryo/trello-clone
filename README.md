@@ -115,6 +115,8 @@ docker compose down -v     # データも含めて完全に削除する場合
 
 ## テスト
 
+テスト・構造化ロギング・CIはPR #21(Issue #19、2026-10-21)でまとめて導入した。導入前はフロントエンドにテストがなく、バックエンドもDBを使うテストが数件あるだけだった。2026-10-22時点でフロントエンド57件・バックエンド64件・E2E 3件。
+
 | 種類 | 対象 | ツール | 実行コマンド |
 |---|---|---|---|
 | 単体 | FE: 表示整形・並び替えロジック・reducer・フック・APIクライアント・logger | Vitest + Testing Library | `cd app && npm test` |
@@ -130,6 +132,29 @@ docker compose down -v     # データも含めて完全に削除する場合
   cd backend && SPRING_DATASOURCE_URL=jdbc:postgresql://localhost:5432/trello_clone_e2e mvn spring-boot:run
   ```
 - E2Eが失敗すると、フルページのスクリーンショットとトレースが `app/test-results/<テスト名>/` に保存される(`npx playwright show-trace <trace.zip>` で再生可能)。HTMLレポートは `app/playwright-report/`。
+
+### テスト一覧
+
+| 種類 | ファイル | 確認内容 | 件数 |
+|---|---|---|---|
+| 単体(FE) | `app/src/utils/cardOrder.test.js` | カードの並び替え・リスト間移動・ソート | 12 |
+| 単体(FE) | `app/src/utils/logger.test.js` | レベル判定、JSON形式、マスキング、リクエストIDの生成 | 10 |
+| 単体(FE) | `app/src/api/client.test.js` | 各APIの呼び出し内容、`X-Request-Id`の付与、通信エラーの扱い | 11 |
+| 単体(FE) | `app/src/context/boardReducer.test.js` | マイボードの状態遷移 | 6 |
+| 単体(FE) | `app/src/utils/cardFormat.test.js`、`app/src/hooks/useDebouncedValue.test.js` | 表示整形、入力のデバウンス | 6 |
+| 統合(FE) | `app/src/test/SearchBoardScreen.integration.test.jsx` | 検索(サーバー)画面を疑似APIで操作 | 8 |
+| 統合(FE) | `app/src/test/Board.integration.test.jsx` | マイボードを疑似IndexedDBで操作 | 4 |
+| 単体(BE) | `CardControllerValidationTest` | リクエストの入力チェック(`@WebMvcTest`) | 15 |
+| 単体(BE) | `CardServiceTest`、`CardUpdateTest` | カードの更新・移動ロジック(Mockito) | 13 |
+| 単体(BE) | `RequestCorrelationFilterTest`、`SensitiveDataMaskerTest` | 相関IDフィルタ、マスキング | 22 |
+| 統合(BE) | `CardApiIntegrationTest`、`ListApiIntegrationTest` | REST API → JPA → PostgreSQL | 8 |
+| 統合(BE) | `LoggingIntegrationTest` | 実際のログ出力(JSON・相関ID・マスキング) | 5 |
+| 統合(BE) | `TrelloCloneBackendApplicationTests` | アプリケーションの起動 | 1 |
+| E2E | `app/e2e/my-board.spec.js` | マイボード: 作成→編集→ドラッグ→リロード後の永続化 | 1 |
+| E2E | `app/e2e/server-board.spec.js` | 検索(サーバー): 同じ流れを実際のバックエンドで。全API通信の`X-Request-Id`も確認 | 1 |
+| E2E | `app/e2e/server-board-many-lists.spec.js` | リスト20件でのリスト間ドラッグ(Issue #20の回帰テスト、PR #22で追加) | 1 |
+
+件数はVitest・Maven Surefireで実際に実行されるテストケースの数(2026-10-22時点、パラメータ化テストは1パターンを1件と数える)。
 
 ## ロギング
 
