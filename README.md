@@ -69,6 +69,7 @@ Trello風のタスク管理(カンバンボード)アプリ。プログラミン
 │   ├── requirements.md         # 要件定義書(索引)
 │   ├── requirements/           # 要件定義書(項目ごとに分割)
 │   └── prototype/index.html    # 画面プロトタイプ(静的HTML)
+├── perf/                # パフォーマンステスト(k6、手動実行)
 ├── .github/workflows/   # CI(GitHub Actions)
 ├── docker-compose.yml   # PostgreSQLのローカル起動用
 └── CLAUDE.md            # 開発ルール(Issue駆動・ブランチ運用・PRフロー)
@@ -155,6 +156,10 @@ docker compose down -v     # データも含めて完全に削除する場合
 | E2E | `app/e2e/server-board-many-lists.spec.js` | リスト20件でのリスト間ドラッグ(Issue #20の回帰テスト、PR #22で追加) | 1 |
 
 件数はVitest・Maven Surefireで実際に実行されるテストケースの数(2026-10-22時点、パラメータ化テストは1パターンを1件と数える)。
+
+### パフォーマンステスト
+
+非機能要件「合計500件で操作時の応答200ms以内」を、k6(Docker)による負荷テストで検証する。CIには組み込まず、任意のタイミングで手動実行する。専用DB `trello_clone_perf` にデータを投入し、エンドポイント別(`baseline.js`)と画面操作別(`user-flow.js`)の p95 を判定する。実行手順と計測記録は [perf/README.md](perf/README.md) を参照(Issue #25)。
 
 ## ロギング
 
