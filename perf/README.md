@@ -121,5 +121,7 @@ docker exec trello-clone-postgres dropdb -U trello --force trello_clone_perf
 |---|---|---|---|---|---|
 | 2026-10-31 | Issue #25 のブランチ | ローカル(Windows 11、Docker Desktop上のPostgreSQL 16、`SQL_LOG_LEVEL=INFO`) | 10 × 50 = 500件 | baseline | 全エンドポイント合格。p95: `GET /api/cards` 49ms、`GET /api/lists` 44ms、絞り込み検索 20〜21ms、`PATCH /api/cards/{id}` 13ms、`PATCH /api/cards/{id}/position` **155ms**(最も遅い) |
 | 2026-10-31 | 同上 | 同上 | 同上 | user-flow(1 VU) | **`op_drag_card` が不合格(p95 247ms、中央値 172ms)**。その他の操作の p95: 初期表示 74ms、検索 54ms、作成 66ms、編集 36ms |
+| 2026-10-31 | Issue #27 のブランチ(JDBCバッチ更新を有効化) | 同上 | 同上 | baseline | 全エンドポイント合格。`PATCH /api/cards/{id}/position` の p95 が 151ms → **40〜45ms**(同じ環境で変更前後を計測。変更前の値は再計測したもの) |
+| 2026-10-31 | 同上 | 同上 | 同上 | user-flow(1 VU) | **全操作合格**。`op_drag_card` の p95 が 281ms → **124〜170ms**(中央値 171ms → 87〜94ms)。2回計測した範囲を記載 |
 
-ドラッグ&ドロップは、カード移動のAPI(移動元・移動先リストの全カードを振り直して保存する)と、移動後のカード一覧の再取得を合わせた時間で、想定データ量でも200msを超える。改善は別Issueで扱う。
+ドラッグ&ドロップは、カード移動のAPIと、移動後のカード一覧の再取得を合わせた時間。移動APIは移動元・移動先リストの全カードの並び順を振り直すため、1回の移動で最大約100件のUPDATEが発行される。当初はこれを1件ずつDBに送っていたため想定データ量でも200msを超えていたが、Issue #27 でJDBCのバッチ更新(`hibernate.jdbc.batch_size`)を有効にし、数回の通信で送るようにして要件を満たした。

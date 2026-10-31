@@ -18,6 +18,11 @@ spring:
     properties:
       hibernate:
         format_sql: true
+        # Moving a card renumbers every card in the source and target lists (up to ~100 UPDATEs at 50 cards/list).
+        # Batching sends them to PostgreSQL in a few round trips instead of one per row.
+        jdbc:
+          batch_size: 50
+        order_updates: true
 
 logging:
   level:
