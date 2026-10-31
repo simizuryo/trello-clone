@@ -1,0 +1,29 @@
+# パフォーマンステスト用のツール群(k6・データ投入用psql)。
+# ローカルにk6やpsqlをインストールせずに、どのシェルからでも同じコマンドで実行できるようにする。
+# 計測対象(PostgreSQL・バックエンド)はリポジトリルートのdocker-compose.yml / mvn spring-boot:run で別途起動しておく。
+name: trello-clone-perf
+
+services:
+  k6:
+    image: grafana/k6:2.2.0
+    volumes:
+      - ./k6:/scripts:ro
+      - ./results:/results
+    environment:
+      BASE_URL: ${BASE_URL:-http://host.docker.internal:8080}
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+
+  seed:
+    image: postgres:16
+    volumes:
+      - ./seed:/seed:ro
+    environment:
+      PGHOST: ${PERF_PGHOST:-host.docker.internal}
+      PGPORT: ${PERF_PGPORT:-5432}
+      PGDATABASE: ${PERF_PGDATABASE:-trello_clone_perf}
+      PGUSER: ${PERF_PGUSER:-trello}
+      PGPASSWORD: ${PERF_PGPASSWORD:-trello}
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    entrypoint: ["psql", "-v", "ON_ERROR_STOP=1", "-f", "/seed/seed.sql"]
