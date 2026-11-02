@@ -14,9 +14,10 @@ async function setupBoard(request) {
   const from = await (await request.post(`${API}/api/lists`, { data: { title: fromTitle } })).json();
   const to = await (await request.post(`${API}/api/lists`, { data: { title: toTitle } })).json();
   const cards = { moving: `E2E-${run} 移動`, stays: `E2E-${run} 残る`, target: `E2E-${run} 移動先` };
-  await request.post(`${API}/api/cards`, { data: { listId: from.id, title: cards.moving } });
-  await request.post(`${API}/api/cards`, { data: { listId: from.id, title: cards.stays } });
-  await request.post(`${API}/api/cards`, { data: { listId: to.id, title: cards.target } });
+  for (const [listId, title] of [[from.id, cards.moving], [from.id, cards.stays], [to.id, cards.target]]) {
+    const res = await request.post(`${API}/api/cards`, { data: { listId, title } });
+    expect(res.ok()).toBeTruthy();
+  }
   return { fromTitle, toTitle, toId: to.id, fromId: from.id, cards };
 }
 
@@ -61,6 +62,52 @@ test("a successful move without filters does not refetch the cards", async ({ pa
   // The order kept on screen is exactly what the server persisted.
   expect(await cardTitles(to).allTextContents()).toEqual(await serverTitles(request, toId));
   expect(await cardTitles(from).allTextContents()).toEqual(await serverTitles(request, fromId));
+});
+
+// Skipping the refetch is only safe if the on-screen order never drifts from the
+// server's, so chain several kinds of moves and compare with the DB after each one.
+test("consecutive moves without filters keep the screen in sync with the DB", async ({ page, request }) => {
+  const run = Date.now().toString(36);
+  const aTitle = `E2E-${run}-A`;
+  const bTitle = `E2E-${run}-B`;
+  const listA = await (await request.post(`${API}/api/lists`, { data: { title: aTitle } })).json();
+  const listB = await (await request.post(`${API}/api/lists`, { data: { title: bTitle } })).json();
+  const [a1, a2, a3, b1] = [`E2E-${run} A1`, `E2E-${run} A2`, `E2E-${run} A3`, `E2E-${run} B1`];
+  for (const [listId, title] of [[listA.id, a1], [listA.id, a2], [listA.id, a3], [listB.id, b1]]) {
+    const res = await request.post(`${API}/api/cards`, { data: { listId, title } });
+    expect(res.ok()).toBeTruthy();
+  }
+
+  await openUnfilteredScreen(page, aTitle);
+  const a = listRegion(page, aTitle);
+  const b = listRegion(page, bTitle);
+  await expect(cardTitles(a)).toHaveText([a1, a2, a3]);
+  const fetches = countCardFetches(page);
+
+  async function move(source, target) {
+    const moved = page.waitForResponse((res) => res.url().endsWith("/position") && res.request().method() === "PATCH");
+    await dragTo(page, source, target);
+    expect((await moved).ok()).toBeTruthy();
+    expect(await cardTitles(a).allTextContents()).toEqual(await serverTitles(request, listA.id));
+    expect(await cardTitles(b).allTextContents()).toEqual(await serverTitles(request, listB.id));
+  }
+
+  // 1. Reorder within the same list: A3 onto A1 (top of the list)
+  await move(a.locator(".card", { hasText: a3 }), a.locator(".card", { hasText: a1 }));
+  await expect(cardTitles(a).first()).toHaveText(a3);
+
+  // 2. Move the new top card of A into B
+  await move(a.locator(".card", { hasText: a3 }), b.locator(".card-list"));
+  await expect(cardTitles(a)).toHaveText([a1, a2]);
+  await expect(cardTitles(b)).toHaveCount(2);
+
+  // 3. Move B1 back into A
+  await move(b.locator(".card", { hasText: b1 }), a.locator(".card-list"));
+  await expect(cardTitles(a)).toHaveCount(3);
+  await expect(cardTitles(b)).toHaveText([a3]);
+
+  await page.waitForTimeout(500);
+  expect(fetches.count).toBe(0);
 });
 
 test("a failed move refetches and restores the server's state", async ({ page, request }) => {
