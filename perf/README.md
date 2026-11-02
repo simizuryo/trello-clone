@@ -32,7 +32,7 @@ perf/
 | `op_search` | 検索・絞り込み | `GET /api/cards?keyword=...` / `?priority=...` |
 | `op_create_card` | カード作成 | `POST /api/cards` |
 | `op_edit_card` | インライン編集 | `PATCH /api/cards/{id}` |
-| `op_drag_card` | ドラッグ&ドロップ | `PATCH /api/cards/{id}/position` → `GET /api/cards`(移動後の再取得) |
+| `op_drag_card` | ドラッグ&ドロップ | `PATCH /api/cards/{id}/position`(絞り込みなしの画面は、移動が成功すれば再取得しない。Issue #29 より前は、移動後の `GET /api/cards` による再取得も含めて計測していた) |
 
 - 判定はウォームアップ後の計測区間(`scenario:measure`)だけで行う。JVMのJITやコネクションプールが温まる前の値を含めないため
 - 編集・移動はカードの件数を変えないように行う(編集は同じ内容で更新、移動はランダムなリストのランダムな位置へ)。`user-flow.js` のカード作成だけはデータが増える(1反復1件)ので、**実行前に毎回データを投入し直す**
@@ -123,5 +123,6 @@ docker exec trello-clone-postgres dropdb -U trello --force trello_clone_perf
 | 2026-10-31 | 同上 | 同上 | 同上 | user-flow(1 VU) | **`op_drag_card` が不合格(p95 247ms、中央値 172ms)**。その他の操作の p95: 初期表示 74ms、検索 54ms、作成 66ms、編集 36ms |
 | 2026-10-31 | Issue #27 のブランチ(JDBCバッチ更新を有効化) | 同上 | 同上 | baseline | 全エンドポイント合格。`PATCH /api/cards/{id}/position` の p95 が 151ms → **40〜45ms**(同じ環境で変更前後を計測。変更前の値は再計測したもの) |
 | 2026-10-31 | 同上 | 同上 | 同上 | user-flow(1 VU) | **全操作合格**。`op_drag_card` の p95 が 281ms → **124〜170ms**(中央値 171ms → 87〜94ms)。2回計測した範囲を記載 |
+| 2026-11-02 | Issue #29 のブランチ(絞り込みなしの移動成功時は再取得しない) | 同上 | 同上 | user-flow(1 VU) | **全操作合格**。`op_drag_card`(移動APIのみ)の p95 **139〜161ms**、中央値 **58〜65ms**(前回の移動+再取得は中央値 87〜94ms)。2回計測した範囲を記載。この日は他の操作の p95 も前回より大きく(作成 122〜143ms、前回 66ms)、マシンの負荷によるばらつきが大きかったため、p95 の改善は確認できていない |
 
 ドラッグ&ドロップは、カード移動のAPIと、移動後のカード一覧の再取得を合わせた時間。移動APIは移動元・移動先リストの全カードの並び順を振り直すため、1回の移動で最大約100件のUPDATEが発行される。当初はこれを1件ずつDBに送っていたため想定データ量でも200msを超えていたが、Issue #27 でJDBCのバッチ更新(`hibernate.jdbc.batch_size`)を有効にし、数回の通信で送るようにして要件を満たした。

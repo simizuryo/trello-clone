@@ -154,8 +154,9 @@ docker compose down -v     # データも含めて完全に削除する場合
 | E2E | `app/e2e/my-board.spec.js` | マイボード: 作成→編集→ドラッグ→リロード後の永続化 | 1 |
 | E2E | `app/e2e/server-board.spec.js` | 検索(サーバー): 同じ流れを実際のバックエンドで。全API通信の`X-Request-Id`も確認 | 1 |
 | E2E | `app/e2e/server-board-many-lists.spec.js` | リスト20件でのリスト間ドラッグ(Issue #20の回帰テスト、PR #22で追加) | 1 |
+| E2E | `app/e2e/server-board-move-refetch.spec.js` | 検索(サーバー)のカード移動後の再取得: 絞り込みなしで成功したら再取得しない(画面とDBの並び順が一致)、同じリスト内・リスト間の連続移動でも画面とDBがずれない、失敗したら再取得して元に戻す(Issue #29) | 3 |
 
-件数はVitest・Maven Surefireで実際に実行されるテストケースの数(2026-10-22時点、パラメータ化テストは1パターンを1件と数える)。
+件数はVitest・Maven Surefireで実際に実行されるテストケースの数(2026-10-22時点、E2Eのみ2026-11-02時点。パラメータ化テストは1パターンを1件と数える)。
 
 ### パフォーマンステスト
 

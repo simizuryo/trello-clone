@@ -38,10 +38,15 @@ test("create, search, edit and move a card through the real backend", async ({ p
   await expect(card.locator(".priority-badge")).toHaveText("高");
   await expect(card.locator(".due-date")).toHaveText("12/24");
 
-  // Drag to the other list persists through PATCH /api/cards/:id/position
+  // Drag to the other list persists through PATCH /api/cards/:id/position.
+  // While filtered, positions are relative to the visible cards, so the screen refetches (#29).
   const moved = page.waitForResponse((res) => res.url().endsWith("/position") && res.request().method() === "PATCH");
+  const refetched = page.waitForResponse(
+    (res) => res.request().method() === "GET" && new URL(res.url()).pathname === "/api/cards"
+  );
   await dragTo(page, card, to.locator(".card-list"));
   expect((await moved).ok()).toBeTruthy();
+  await refetched;
   await expect(cardTitles(to)).toHaveText([cardTitle]);
   await expect(cardTitles(from)).toHaveCount(0);
 

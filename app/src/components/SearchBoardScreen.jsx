@@ -138,14 +138,21 @@ export default function SearchBoardScreen() {
     const finalCard = cards.find((c) => c.id === cardId);
     if (!finalCard) return;
 
+    // Without filters the screen holds every card, and moveCardInCards reindexes
+    // exactly like CardService#moveCard, so a successful move needs no refetch.
+    // While filtered, positions are relative to the visible subset and differ
+    // from the server's, so the server's result must be fetched.
+    const isFiltered = Boolean(debouncedKeyword || priority || listId);
+
     setActionError(null);
     try {
       await moveCard(cardId, { listId: finalCard.listId, sortOrder: finalCard.sortOrder });
     } catch (err) {
       setActionError(err.message || "並び替えに失敗しました");
-    } finally {
       refetchCards();
+      return;
     }
+    if (isFiltered) refetchCards();
   }
 
   function handleDragCancel() {
