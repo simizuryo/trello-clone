@@ -32,7 +32,7 @@ perf/
 | `op_search` | 検索・絞り込み | `GET /api/cards?keyword=...` / `?priority=...` |
 | `op_create_card` | カード作成 | `POST /api/cards` |
 | `op_edit_card` | インライン編集 | `PATCH /api/cards/{id}` |
-| `op_drag_card` | ドラッグ&ドロップ | `PATCH /api/cards/{id}/position` → `GET /api/cards`(移動後の再取得) |
+| `op_drag_card` | ドラッグ&ドロップ | `PATCH /api/cards/{id}/position`(絞り込みなしの画面は、移動が成功すれば再取得しない。Issue #29 より前は、移動後の `GET /api/cards` による再取得も含めて計測していた) |
 
 - 判定はウォームアップ後の計測区間(`scenario:measure`)だけで行う。JVMのJITやコネクションプールが温まる前の値を含めないため
 - 編集・移動はカードの件数を変えないように行う(編集は同じ内容で更新、移動はランダムなリストのランダムな位置へ)。`user-flow.js` のカード作成だけはデータが増える(1反復1件)ので、**実行前に毎回データを投入し直す**

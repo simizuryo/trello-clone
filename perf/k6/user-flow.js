@@ -86,9 +86,9 @@ export default function (board) {
     });
     sleep(THINK_TIME);
 
+    // 絞り込みなしの画面は、移動が成功すれば再取得しない(SearchBoardScreen#handleDragEnd)
     group('ドラッグ', () => timed(ops.dragCard, () => {
         api.moveCard(pick(board.cards).id, pick(board.listIds), Math.floor(Math.random() * board.cardsPerList));
-        api.searchCards();
     }));
     sleep(THINK_TIME);
 }
