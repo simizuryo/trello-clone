@@ -36,4 +36,7 @@ export async function dragTo(page, source, target) {
   await page.mouse.move(to.x + to.width / 2, to.y + to.height / 2, { steps: 20 });
   await page.mouse.move(to.x + to.width / 2, to.y + to.height / 2 + 2, { steps: 2 });
   await page.mouse.up();
+  // After the drop, DragOverlay animates back (~250ms) over the dropped card. A drag
+  // started before it is gone grabs the overlay instead and only selects text.
+  await expect(page.locator(".card-overlay")).toHaveCount(0);
 }
