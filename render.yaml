@@ -1,0 +1,44 @@
+# Render Blueprint。無料枠でデプロイの流れを検証するための定義(Issue #33)。
+# 無料のPostgreSQLは作成から30日で期限切れになり、猶予14日の後にデータごと削除される。
+services:
+  - type: web
+    name: trello-clone
+    runtime: docker
+    plan: free
+    region: singapore
+    dockerfilePath: ./backend/Dockerfile
+    dockerContext: .
+    healthCheckPath: /actuator/health
+    autoDeployTrigger: checksPass
+    envVars:
+      - key: PORT
+        value: "8080"
+      # Dockerfile の ENTRYPOINT がJDBC形式の SPRING_DATASOURCE_URL に変換する
+      - key: DATABASE_URL
+        fromDatabase:
+          name: trello-clone-db
+          property: connectionString
+      - key: SPRING_DATASOURCE_USERNAME
+        fromDatabase:
+          name: trello-clone-db
+          property: user
+      - key: SPRING_DATASOURCE_PASSWORD
+        fromDatabase:
+          name: trello-clone-db
+          property: password
+      # 公開URLでDB情報などを見せない
+      - key: MANAGEMENT_ENDPOINT_HEALTH_SHOW_DETAILS
+        value: never
+      - key: SQL_LOG_LEVEL
+        value: INFO
+      # 無料枠の 512MB / 0.1 CPU で動かすためのJVM設定
+      - key: JAVA_TOOL_OPTIONS
+        value: -XX:MaxRAMPercentage=70 -XX:+UseSerialGC -XX:TieredStopAtLevel=1 -Xss512k
+
+databases:
+  - name: trello-clone-db
+    plan: free
+    region: singapore
+    postgresMajorVersion: "16"
+    # 外部からの直接接続を許可しない(Render内部のネットワークからのみ接続する)
+    ipAllowList: []

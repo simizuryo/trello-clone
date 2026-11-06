@@ -33,4 +33,5 @@ WORKDIR /app
 COPY --from=build /workspace/target/*.jar app.jar
 
 EXPOSE 8080
-ENTRYPOINT ["java", "-jar", "app.jar"]
+# RenderはDB接続先を postgresql://user:pass@host/db 形式で渡すため、JDBC形式に変換する。DATABASE_URL が未設定なら何もしない。
+ENTRYPOINT ["sh", "-c", "if [ -n \"$DATABASE_URL\" ]; then export SPRING_DATASOURCE_URL=\"jdbc:postgresql://${DATABASE_URL##*@}\"; fi; exec java -jar app.jar"]
