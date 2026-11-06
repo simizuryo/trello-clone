@@ -195,6 +195,8 @@ docker compose down -v     # データも含めて完全に削除する場合
 
 AWS CLI + Terraformを使ってAWS上にデプロイする手順は [docs/deployment/](docs/deployment/) にまとめている。AWS/Terraform/IaCが初めての場合の解説から、認証設定・実際のデプロイ手順・コストの目安までを含む。
 
+Renderの無料枠で検証する手順は [docs/deployment/06-render-trial.md](docs/deployment/06-render-trial.md) を参照。
+
 ## 開発ルール
 
 Issue駆動開発・ブランチ命名規則・PRフローなど、このリポジトリで変更を行う際のルールは [CLAUDE.md](CLAUDE.md) にまとめている。
