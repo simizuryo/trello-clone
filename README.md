@@ -187,8 +187,8 @@ docker compose down -v     # データも含めて完全に削除する場合
 
 `.github/workflows/ci.yml` で、PRとmainへのpushごとに以下を自動実行する。
 
-1. **Frontend**: lint → 単体・統合テスト → ビルド
-2. **Backend**: PostgreSQLサービスコンテナを起動して `mvn verify`(単体・統合テスト)
+1. **Frontend**: lint(oxlint)→ 単体・統合テスト → ビルド
+2. **Backend**: 静的解析(Checkstyle・SpotBugs)→ PostgreSQLサービスコンテナを使った単体・統合テスト。静的解析が失敗してもテストは実行し、失敗時はテスト・静的解析のレポートを成果物 `backend-reports` としてアップロードする(保持14日)
 3. **E2E**: 1と2が成功したら、空のPostgreSQLに対してバックエンドとフロントエンドを起動してPlaywrightを実行する。失敗時はスクリーンショット・トレース・HTMLレポートを成果物 `e2e-failure-artifacts` としてアップロードする(保持14日)
 
 ## AWSへのデプロイ

@@ -30,7 +30,7 @@ jobs:
       - run: npm run build
 
   backend:
-    name: Backend (unit + integration)
+    name: Backend (static analysis / unit + integration)
     runs-on: ubuntu-latest
     timeout-minutes: 20
     services:
@@ -58,13 +58,20 @@ jobs:
           java-version: 21
           cache: maven
           cache-dependency-path: backend/pom.xml
-      - run: mvn -B verify
-      - name: Upload test reports
+      - name: Static analysis (Checkstyle / SpotBugs)
+        run: mvn -B -DskipTests verify
+      - name: Unit + integration tests
+        if: ${{ !cancelled() }}
+        run: mvn -B test
+      - name: Upload test and static analysis reports
         if: failure()
         uses: actions/upload-artifact@v4
         with:
-          name: backend-surefire-reports
-          path: backend/target/surefire-reports/
+          name: backend-reports
+          path: |
+            backend/target/surefire-reports/
+            backend/target/checkstyle-result.xml
+            backend/target/spotbugsXml.xml
           retention-days: 14
 
   e2e:

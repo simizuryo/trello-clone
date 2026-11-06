@@ -1,0 +1,57 @@
+<?xml version="1.0"?>
+<!DOCTYPE module PUBLIC
+    "-//Checkstyle//DTD Checkstyle Configuration 1.3//EN"
+    "https://checkstyle.org/dtds/configuration_1_3.dtd">
+<!-- 不具合や保守性の低下につながる記述を検出する。見た目だけの整形ルールは対象にしない。 -->
+<module name="Checker">
+  <property name="severity" value="error"/>
+  <property name="fileExtensions" value="java"/>
+
+  <module name="FileTabCharacter"/>
+
+  <!-- Spring Data の派生クエリでは _ がプロパティ走査の区切りになる(例: countByList_Id) -->
+  <module name="SuppressionSingleFilter">
+    <property name="checks" value="MethodName"/>
+    <property name="files" value="Repository\.java$"/>
+  </module>
+
+  <module name="TreeWalker">
+    <!-- imports -->
+    <module name="AvoidStarImport"/>
+    <module name="RedundantImport"/>
+    <module name="UnusedImports"/>
+
+    <!-- naming -->
+    <!-- SLF4J の logger は慣例どおり log を許可する -->
+    <module name="ConstantName">
+      <property name="format" value="^log$|^[A-Z][A-Z0-9]*(_[A-Z0-9]+)*$"/>
+    </module>
+    <module name="LocalVariableName"/>
+    <module name="MemberName"/>
+    <module name="MethodName"/>
+    <module name="PackageName"/>
+    <module name="ParameterName"/>
+    <module name="StaticVariableName"/>
+    <module name="TypeName"/>
+
+    <!-- blocks -->
+    <module name="EmptyCatchBlock"/>
+    <module name="EmptyStatement"/>
+    <module name="NeedBraces"/>
+
+    <!-- likely bugs -->
+    <module name="CovariantEquals"/>
+    <module name="EqualsHashCode"/>
+    <module name="FallThrough"/>
+    <module name="ModifiedControlVariable"/>
+    <module name="OneStatementPerLine"/>
+    <module name="SimplifyBooleanExpression"/>
+    <module name="SimplifyBooleanReturn"/>
+    <module name="StringLiteralEquality"/>
+
+    <!-- readability -->
+    <module name="ArrayTypeStyle"/>
+    <module name="ModifierOrder"/>
+    <module name="UpperEll"/>
+  </module>
+</module>

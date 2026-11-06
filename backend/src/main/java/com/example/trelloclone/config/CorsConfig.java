@@ -12,7 +12,7 @@ public class CorsConfig implements WebMvcConfigurer {
     private final String[] allowedOrigins;
 
     public CorsConfig(@Value("${app.cors.allowed-origins}") String[] allowedOrigins) {
-        this.allowedOrigins = allowedOrigins;
+        this.allowedOrigins = allowedOrigins.clone();
     }
 
     @Override
