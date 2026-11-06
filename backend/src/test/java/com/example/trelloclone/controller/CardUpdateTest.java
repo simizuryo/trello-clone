@@ -40,7 +40,6 @@ class CardUpdateTest {
     private CardEntity a0;
     private CardEntity a1;
     private CardEntity a2;
-    private CardEntity b0;
 
     @BeforeEach
     void setUp() {
@@ -59,7 +58,7 @@ class CardUpdateTest {
         a0 = newCard(listA, "A0", 0, Priority.LOW);
         a1 = newCard(listA, "A1", 1, Priority.MEDIUM);
         a2 = newCard(listA, "A2", 2, Priority.HIGH);
-        b0 = newCard(listB, "B0", 0, null);
+        newCard(listB, "B0", 0, null);
     }
 
     private CardEntity newCard(ListEntity list, String title, int sortOrder, Priority priority) {

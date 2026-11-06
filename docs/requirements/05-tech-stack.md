@@ -39,6 +39,8 @@
 | PostgreSQL JDBC Driver | 42.7.4 | DB接続(Spring Boot 3.3.4が管理するバージョン) |
 | Flyway(`flyway-core` / `flyway-database-postgresql`) | 10.10.0 | DBマイグレーション(Spring Boot 3.3.4が管理するバージョン) |
 | logstash-logback-encoder | 8.0 | JSON構造化ログ出力・ログのマスキング |
+| Checkstyle(`maven-checkstyle-plugin`) | 14.4.0(プラグイン 3.6.0) | 静的解析(コーディング規約) |
+| SpotBugs(`spotbugs-maven-plugin`) | 4.10.5.0 | 静的解析(バグパターン検出) |
 
 ## 9.2 フロントエンドとバックエンドの連携状況
 - フロントエンド(`app/`)は「マイボード」(IndexedDB, ローカル永続化)と「検索(サーバー)」(Spring Boot API経由でPostgreSQLへ永続化)の2画面をタブで切り替える構成

@@ -92,6 +92,17 @@ curl -X PATCH http://localhost:8080/api/cards/1/position \
 
 CORSは `application.yml` の `app.cors.allowed-origins` で許可オリジンを設定しています(デフォルトはフロントエンド(`app/`)の開発サーバー `http://localhost:5173`)。許可メソッドは `GET`, `POST`, `PATCH` です。
 
+## 静的解析
+
+`mvn verify` の中で Checkstyle(コーディング規約)と SpotBugs(バグパターン検出)を実行し、違反があればビルドを失敗させます。対象は本体コードとテストコードの両方です。
+
+```bash
+mvn -DskipTests verify     # 静的解析のみ(PostgreSQL不要)
+mvn verify                 # テストと静的解析(PostgreSQLが必要)
+```
+
+結果は `target/checkstyle-result.xml` と `target/spotbugsXml.xml` に出力されます。ルールと除外設定は `config/checkstyle/checkstyle.xml` と `config/spotbugs/exclude.xml` で管理し、除外を追加するときは理由をコメントに書きます。
+
 ## 停止・後片付け
 
 ```bash
